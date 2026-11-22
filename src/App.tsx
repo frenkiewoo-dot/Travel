@@ -5,7 +5,7 @@
 // ============================================================
 
 // 引入路由组件
-import { HashRouter, Route, Routes } from 'react-router-dom'
+import { HashRouter, Route, Routes, useLocation } from 'react-router-dom'
 // 引入底部导航
 import { BottomNav } from './components/BottomNav'
 // 引入各个页面
@@ -14,12 +14,28 @@ import DayPage from './pages/DayPage'
 import UpcomingPage from './pages/UpcomingPage'
 import MorePage from './pages/MorePage'
 import ComingSoon from './pages/ComingSoon'
+import MapPage from './pages/MapPage'
+import NavPage from './pages/NavPage'
 
 // App 组件
 export default function App() {
-  // 返回整体结构
+  // 返回整体结构（路由包在最外层，里面的组件才能读当前网址）
   return (
     <HashRouter>
+      <Shell />
+    </HashRouter>
+  )
+}
+
+// 外壳：页面 + 底部导航
+function Shell() {
+  // 当前网址
+  const location = useLocation()
+  // 导航页全屏显示，不要底部导航栏
+  const hideNav = location.pathname.startsWith('/nav')
+  // 返回结构
+  return (
+    <>
       {/* 上下结构：上面是页面，下面是导航栏；高度固定为屏幕高度 */}
       <div className="flex h-full flex-col">
         {/* 页面区域：占满剩余空间 */}
@@ -33,11 +49,10 @@ export default function App() {
             <Route path="/day/:n" element={<DayPage />} />
             {/* 未来旅程 */}
             <Route path="/upcoming" element={<UpcomingPage />} />
-            {/* 地图（第 2 步） */}
-            <Route
-              path="/map"
-              element={<ComingSoon title="地图" step={2} items={['搜索店铺、景点、地址', '拖动图钉标记多个地点，自动连成路线', '一键优化顺序', 'App 内逐路口导航：当前街道、下一个路口怎么拐', '一键交给 Google Maps 语音导航']} />}
-            />
+            {/* 地图：搜索、图钉、路线 */}
+            <Route path="/map" element={<MapPage />} />
+            {/* App 内导航 */}
+            <Route path="/nav" element={<NavPage />} />
             {/* 预算（第 6 步） */}
             <Route
               path="/budget"
@@ -54,9 +69,9 @@ export default function App() {
             <Route path="*" element={<HomePage />} />
           </Routes>
         </main>
-        {/* 底部导航 */}
-        <BottomNav />
+        {/* 底部导航（导航页不显示） */}
+        {!hideNav && <BottomNav />}
       </div>
-    </HashRouter>
+    </>
   )
 }
