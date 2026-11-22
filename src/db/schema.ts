@@ -62,12 +62,64 @@ export interface Stop {
   lng: number
   // 住几晚（home 和 transit 是 0）
   nights: number
+  // 市内交通指南（推荐内容，见 src/data/content.ts）
+  guide?: CityGuide
+  // 我自己记的市内交通笔记
+  transportNote?: string
+}
+
+// ---------- 市内交通指南 ----------
+
+// 一个城市的交通指南（票种、App、车站机场怎么进城、节日提醒）
+export interface CityGuide {
+  // 票种和价格
+  tickets: { name: string; price: string; note?: string }[]
+  // 推荐 App
+  apps: { name: string; use: string; url?: string }[]
+  // 到达的地方（车站、机场、大巴站）以及怎么进城
+  arrivals: { name: string; nameZh: string; lat: number; lng: number; how: string }[]
+  // 小贴士
+  tips: string[]
+  // 节日提醒（12/24–26）
+  holidayNotes: string[]
+  // 信息来源
+  sources: { label: string; url: string }[]
+  // 调研时间，例如 “2026 年 11 月”
+  updated: string
 }
 
 // ---------- 城际交通段 ----------
 
 // 交通方式：tbd = 还没决定
 export type TransportMode = 'train' | 'bus' | 'flight' | 'ferry' | 'car' | 'tbd'
+
+// 一种可选的交通方式（例如“FlixBus 直达大巴”）
+export interface TransportOption {
+  // 唯一 ID
+  id: string
+  // 交通方式
+  mode: TransportMode
+  // 运营商，例如 “FlixBus”、“DB / DSB”
+  provider: string
+  // 路线说明，例如 “Groningen → Berlin ZOB 直达”
+  title: string
+  // 大致时长，例如 “约 7.5–8 小时”
+  duration?: string
+  // 价格区间，例如 “约 €13–65”
+  price?: string
+  // 班次，例如 “每天多班”
+  frequency?: string
+  // 预订链接
+  url?: string
+  // 备注
+  note?: string
+  // 节日提醒
+  holidayNote?: string
+  // 信息来源
+  sourceUrl?: string
+  // 来源：recommended = 推荐 · 需核实；user = 自己添加
+  source: 'recommended' | 'user'
+}
 
 // 两个地点之间的一段交通
 export interface Segment {
@@ -87,6 +139,10 @@ export interface Segment {
   booked: boolean
   // 备注
   note?: string
+  // 可选的交通方式
+  options?: TransportOption[]
+  // 选定的方式（options 里的 ID）
+  chosenOptionId?: string
 }
 
 // ---------- 地点（酒店、景点等） ----------
@@ -192,6 +248,8 @@ export interface RouteCache {
   legDistances: number[]
   // 每两站之间的步行时间（秒）
   legDurations: number[]
+  // 公交路线的简要说明，例如 “U5 → S3”（只有公交缓存才有）
+  summary?: string
   // 保存时间
   savedAt: number
 }

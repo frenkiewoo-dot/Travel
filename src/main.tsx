@@ -16,6 +16,8 @@ import './styles/index.css'
 import './lib/theme'
 // 引入数据库初始化
 import { ensureSeeded, requestPersistentStorage } from './db/db'
+// 引入推荐内容合并
+import { applyContent } from './db/content'
 // 引入 App
 import App from './App'
 
@@ -23,6 +25,8 @@ import App from './App'
 async function start() {
   // 第一次打开时写入初始行程
   await ensureSeeded()
+  // 合并最新的推荐内容（交通方式、城市指南）；出错也不影响打开 App
+  await applyContent().catch((e) => console.error('推荐内容合并失败', e))
   // 申请持久存储（不等结果）
   requestPersistentStorage().catch(() => {})
   // 把 App 渲染到 #root 里

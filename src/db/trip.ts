@@ -11,7 +11,7 @@
 // 引入数据库
 import { db } from './db'
 // 引入数据结构
-import type { DayPlan, Place, Segment, Stop, Trip } from './schema'
+import type { DayPlan, Place, Segment, Stop, TransportOption, Trip } from './schema'
 // 引入行程计算
 import { computeSpans, totalDays } from '../lib/itinerary'
 // 引入生成 ID 的工具
@@ -132,6 +132,53 @@ export function remapDayPlans(oldStops: Stop[], newStops: Stop[], plans: DayPlan
 export async function updateSegment(id: string, patch: Partial<Segment>) {
   // 写入
   await db.segments.update(id, patch)
+}
+
+// 选定某一段交通的方式（再点一次取消）；同时把交通方式同步成这个选项的方式
+export async function chooseOption(segId: string, optionId: string | null) {
+  // 读这一段
+  const seg = await db.segments.get(segId)
+  // 不存在
+  if (!seg) return
+  // 选中的方式
+  const opt = seg.options?.find((o) => o.id === optionId)
+  // 写入：选中就同步方式，取消就只清空选择
+  await db.segments.update(segId, opt ? { chosenOptionId: opt.id, mode: opt.mode } : { chosenOptionId: undefined })
+}
+
+// 给某一段交通添加一个自己的方式
+export async function addUserOption(segId: string, opt: Omit<TransportOption, 'id' | 'source'>) {
+  // 用事务：读 → 改 → 写
+  await db.transaction('rw', db.segments, async () => {
+    // 读这一段
+    const seg = await db.segments.get(segId)
+    // 不存在
+    if (!seg) return
+    // 加在最后
+    await db.segments.update(segId, { options: [...(seg.options ?? []), { ...opt, id: newId('opt'), source: 'user' }] })
+  })
+}
+
+// 删除某一段交通里自己添加的方式
+export async function deleteOption(segId: string, optionId: string) {
+  // 用事务：读 → 改 → 写
+  await db.transaction('rw', db.segments, async () => {
+    // 读这一段
+    const seg = await db.segments.get(segId)
+    // 不存在
+    if (!seg) return
+    // 去掉这个方式；如果它是选中的，也取消选中
+    await db.segments.update(segId, {
+      options: (seg.options ?? []).filter((o) => o.id !== optionId),
+      chosenOptionId: seg.chosenOptionId === optionId ? undefined : seg.chosenOptionId,
+    })
+  })
+}
+
+// 修改城市的字段（例如自己的交通笔记）
+export async function updateStop(id: string, patch: Partial<Stop>) {
+  // 写入
+  await db.stops.update(id, patch)
 }
 
 // ---------- 酒店 / 景点 ----------
