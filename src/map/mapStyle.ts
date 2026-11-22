@@ -353,6 +353,15 @@ function restyleLayer(layer: LayerSpecification, p: MapPalette): LayerSpecificat
     const tf = JSON.stringify(l.layout['text-field'] ?? '')
     // 判断原来是不是显示名字（包含 name）
     if (tf.includes('name')) l.layout['text-field'] = LOCAL_NAME
+    // 道路编号牌（例如 B2）：白色牌子上用深色字，牌子稍微淡一点
+    if (id.includes('shield')) {
+      // 深色字
+      l.paint['text-color'] = '#3A322B'
+      // 牌子透明度
+      l.paint['icon-opacity'] = 0.75
+      l.paint['text-opacity'] = 0.85
+      return l
+    }
     // 文字颜色：城市和国家名用深色
     if (id.startsWith('label_city') || id.startsWith('label_country') || id === 'label_town') l.paint['text-color'] = p.textStrong
     // 水上的名字：雾蓝色

@@ -127,3 +127,43 @@ export function useMeMarker(map: maplibregl.Map | null, position: LngLat | null)
     }
   }, [map])
 }
+
+// 水滴形图钉的 SVG（34×42，尖端在底部中间）
+const PIN_SVG =
+  '<svg width="34" height="42" viewBox="0 0 34 42" aria-hidden="true"><path d="M17 40.5S3.5 28.6 3.5 17a13.5 13.5 0 1127 0c0 11.6-13.5 23.5-13.5 23.5z" /></svg>'
+
+// 创建图钉标记（带编号，可以拖动）
+export function pinMarker(
+  label: string,
+  name: string,
+  opts: { draggable?: boolean; selected?: boolean; onClick?: () => void; onDragEnd?: (lngLat: LngLat) => void } = {},
+): maplibregl.Marker {
+  // 外层元素
+  const el = document.createElement('button')
+  // 样式类：选中时颜色加深
+  el.className = `pin-marker${opts.selected ? ' is-selected' : ''}`
+  // 读屏文字
+  el.setAttribute('aria-label', `图钉 ${label}：${name}`)
+  // 水滴形状 + 编号
+  el.innerHTML = `${PIN_SVG}<span class="num"></span>`
+  // 写入编号（用 textContent 避免特殊字符出问题）
+  el.querySelector('.num')!.textContent = label
+  // 点击事件
+  el.addEventListener('click', (e) => {
+    e.stopPropagation()
+    opts.onClick?.()
+  })
+  // 创建标记：尖端（底部）对准坐标
+  const marker = new maplibregl.Marker({ element: el, anchor: 'bottom', draggable: opts.draggable ?? false })
+  // 拖动结束时回调新位置
+  if (opts.onDragEnd) {
+    marker.on('dragend', () => {
+      // 新坐标
+      const ll = marker.getLngLat()
+      // 回调
+      opts.onDragEnd!([ll.lng, ll.lat])
+    })
+  }
+  // 返回
+  return marker
+}

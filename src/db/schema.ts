@@ -150,6 +150,8 @@ export interface DayPlanItem {
   time?: string
   // 备注
   note?: string
+  // 名字是不是根据坐标自动取的（自动取的名字在拖动图钉后会重新取）
+  autoName?: boolean
 }
 
 // 某一天的日程

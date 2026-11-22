@@ -132,10 +132,19 @@ body {
   overscroll-behavior: none;
 }
 
-/* 按钮继承字体 */
-button {
-  font: inherit;
-  color: inherit;
+/* 按钮继承字体和颜色（放在 base 层，这样 Tailwind 的 text-xxx 颜色类可以覆盖它） */
+@layer base {
+  button {
+    font: inherit;
+    color: inherit;
+  }
+}
+
+/* 去掉搜索框自带的清除按钮（我们有自己的） */
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 /* ===== 地图控件和标记的样式 ===== */
@@ -301,6 +310,62 @@ button {
   text-overflow: ellipsis;
 }
 
+/* 图钉（水滴形，带编号） */
+.pin-marker {
+  /* 尺寸 */
+  width: 34px;
+  height: 42px;
+  /* 注意：不要设置 position，地图引擎会把标记设成绝对定位，里面的编号以它为准 */
+  /* 去掉按钮默认样式 */
+  background: none;
+  border: 0;
+  padding: 0;
+  /* 可拖动的手势 */
+  cursor: grab;
+  /* 长按时不弹出 iPhone 的菜单 */
+  -webkit-touch-callout: none;
+  user-select: none;
+  /* 阴影 */
+  filter: drop-shadow(0 2px 3px var(--shadow));
+}
+/* 水滴形状 */
+.pin-marker svg {
+  position: absolute;
+  inset: 0;
+}
+/* 水滴填充：酒红，白色描边 */
+.pin-marker path {
+  fill: var(--accent);
+  stroke: var(--card);
+  stroke-width: 2;
+}
+/* 选中的图钉：深色 */
+.pin-marker.is-selected path {
+  fill: var(--ink);
+}
+/* 图钉上的编号 */
+.pin-marker .num {
+  position: absolute;
+  top: 8px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--on-accent);
+}
+/* 选中时编号颜色 */
+.pin-marker.is-selected .num {
+  color: var(--paper);
+}
+
+/* 地图容器：长按时不要弹出 iPhone 的放大镜和菜单 */
+.maplibregl-canvas-container {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 /* 我的位置：蓝点 */
 .me-marker {
   /* 蓝点大小 */
@@ -312,8 +377,7 @@ button {
   border: 3px solid #FFFFFF;
   /* 阴影 */
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.3);
-  /* 相对定位，给下面的光圈用 */
-  position: relative;
+  /* 注意：不要设置 position（地图引擎已经设成绝对定位，光圈以它为准） */
 }
 /* 蓝点外面一圈慢慢扩散的光圈 */
 .me-marker::after {

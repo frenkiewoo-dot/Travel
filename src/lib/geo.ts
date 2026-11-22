@@ -207,3 +207,77 @@ export function formatDistance(m: number): string {
   // 否则用公里，保留一位小数
   return `${(m / 1000).toFixed(1)} 公里`
 }
+
+// 从 a 走向 b 的方位角（0 = 正北，90 = 正东），用于让地图朝向前进方向
+export function bearing(a: LngLat, b: LngLat): number {
+  // 角度转弧度
+  const toRad = (d: number) => (d * Math.PI) / 180
+  // 两点纬度（弧度）
+  const φ1 = toRad(a[1])
+  const φ2 = toRad(b[1])
+  // 经度差（弧度）
+  const Δλ = toRad(b[0] - a[0])
+  // 球面方位角公式
+  const y = Math.sin(Δλ) * Math.cos(φ2)
+  const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ)
+  // 转成 0~360 度
+  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360
+}
+
+// 一条折线每个点距起点的累计距离（米）
+export function cumulativeDistances(coords: LngLat[]): number[] {
+  // 第一个点是 0
+  const cum = [0]
+  // 逐段累加
+  for (let i = 1; i < coords.length; i++) cum.push(cum[i - 1] + distanceMeters(coords[i - 1], coords[i]))
+  // 返回
+  return cum
+}
+
+// 点到线段的投影结果
+export interface SegmentProjection {
+  // 点到线段的最短距离（米）
+  dist: number
+  // 投影点在线段上的比例（0 = 起点，1 = 终点）
+  t: number
+}
+
+// 计算点 p 到线段 a-b 的最短距离（小范围内把经纬度近似成平面，误差很小）
+export function projectToSegment(p: LngLat, a: LngLat, b: LngLat): SegmentProjection {
+  // 当地 1 度经度约多少米
+  const kx = 111320 * Math.cos((p[1] * Math.PI) / 180)
+  // 1 度纬度约多少米
+  const ky = 110540
+  // 以 p 为原点，把 a、b 换算成米
+  const ax = (a[0] - p[0]) * kx
+  const ay = (a[1] - p[1]) * ky
+  const bx = (b[0] - p[0]) * kx
+  const by = (b[1] - p[1]) * ky
+  // 线段方向
+  const dx = bx - ax
+  const dy = by - ay
+  // 线段长度的平方
+  const len2 = dx * dx + dy * dy
+  // 投影比例（限制在 0~1 之间）
+  const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, -(ax * dx + ay * dy) / len2))
+  // 投影点坐标
+  const x = ax + t * dx
+  const y = ay + t * dy
+  // 返回距离和比例
+  return { dist: Math.hypot(x, y), t }
+}
+
+// 沿折线走 d 米之后所在的位置（模拟行走用）
+export function pointAlong(coords: LngLat[], cum: number[], d: number): LngLat {
+  // 超出终点就返回终点
+  if (d >= cum[cum.length - 1]) return coords[coords.length - 1]
+  // 找到 d 落在哪一段
+  let i = 1
+  while (i < cum.length && cum[i] < d) i++
+  // 这一段的长度
+  const seg = cum[i] - cum[i - 1]
+  // 在这一段里的比例
+  const t = seg === 0 ? 0 : (d - cum[i - 1]) / seg
+  // 线性插值
+  return [coords[i - 1][0] + (coords[i][0] - coords[i - 1][0]) * t, coords[i - 1][1] + (coords[i][1] - coords[i - 1][1]) * t]
+}
