@@ -12,7 +12,7 @@ import { Icon } from '../components/Icon'
 // 建设计划（每一步做什么）
 const PLAN: { step: number; title: string; done: boolean }[] = [
   { step: 1, title: '地图首页、今日旅程、未来旅程', done: true },
-  { step: 2, title: '地图：搜索、图钉、路线、App 内逐路口导航', done: false },
+  { step: 2, title: '地图：搜索、图钉、路线、App 内逐路口导航', done: true },
   { step: 3, title: '行程编辑、城市详情（酒店 / 景点）', done: false },
   { step: 4, title: '日程安排、城际与市内交通', done: false },
   { step: 5, title: '票夹（车票离线查看、全屏二维码）', done: false },
@@ -103,7 +103,7 @@ export default function MorePage() {
       <p className="mt-5 text-center text-[11px] leading-relaxed text-muted">
         地图数据 © OpenStreetMap 贡献者 · 地图服务 OpenFreeMap
         <br />
-        步行路线 OSRM / FOSSGIS
+        步行路线 OSRM / FOSSGIS · 地点搜索 Photon / komoot
       </p>
     </div>
   )

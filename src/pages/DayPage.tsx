@@ -3,7 +3,8 @@
 //   - 上半屏：大地图，当天要去的地方都标上编号，沿真实街道画出步行路线
 //   - 下半屏：当天的顺序清单，每两站之间的步行时间
 //   - “顺路排序”：自动排出总路程最短的顺序
-//   - “Google Maps 导航”：把所有站点一起传过去
+//   - 导航：App 内逐路口导航，或把所有站点一起传给 Google Maps
+//   - “在地图上编辑”：去地图标签搜索、放图钉
 // ============================================================
 
 // 引入 React 钩子
@@ -20,10 +21,12 @@ import type { DayPlan, DayPlanItem, Segment, Stop } from '../db/schema'
 import { useMap } from '../map/useMap'
 // 引入标记
 import { stopMarker, useMeMarker } from '../map/markers'
-// 引入图层工具
-import { collection, ensureLayer, highlightLandmarks, lineFeature, setGeoJSON } from '../map/layers'
-// 引入颜色变量读取
-import { cssVar } from '../map/tripRoute'
+// 引入景点建筑高亮
+import { highlightLandmarks } from '../map/layers'
+// 引入步行路线绘制
+import { drawWalkRoute } from '../map/walkRoute'
+// 引入 Google Maps 链接
+import { GMAPS_MAX_WAYPOINTS, googleMapsDirections } from '../lib/gmaps'
 // 引入定位
 import { useGeolocation } from '../lib/useGeolocation'
 // 引入步行路线
@@ -38,9 +41,6 @@ import { Icon, type IconName } from '../components/Icon'
 import { MapButtons } from '../components/MapButtons'
 // 引入加载画面
 import { Loading } from './HomePage'
-
-// Google Maps 一次最多传 9 个途经点
-const GMAPS_MAX_WAYPOINTS = 9
 
 // 页面组件；today = true 表示从“今日旅程”进来
 export default function DayPage({ today = false }: { today?: boolean }) {
@@ -110,45 +110,17 @@ export default function DayPage({ today = false }: { today?: boolean }) {
   useEffect(() => {
     // 地图样式没好
     if (!map || styleRev === 0) return
-    // 路线坐标：有路线用路线，没有就空
-    const coords = route?.coords ?? []
-    // 写入数据源
-    setGeoJSON(map, 'day-route', collection(coords.length > 1 ? [lineFeature(coords, { real: route?.isReal ? 1 : 0 })] : []))
-    // 衬底线
-    ensureLayer(map, {
-      id: 'day-route-casing',
-      type: 'line',
-      source: 'day-route',
-      layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': cssVar('--card'), 'line-width': 9, 'line-opacity': 0.9 },
-    })
-    // 真实路线：实线
-    ensureLayer(map, {
-      id: 'day-route-line',
-      type: 'line',
-      source: 'day-route',
-      filter: ['==', ['get', 'real'], 1],
-      layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': cssVar('--accent'), 'line-width': 4.5 },
-    })
-    // 估算路线（没网）：虚线
-    ensureLayer(map, {
-      id: 'day-route-estimate',
-      type: 'line',
-      source: 'day-route',
-      filter: ['==', ['get', 'real'], 0],
-      layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': cssVar('--accent'), 'line-width': 3.5, 'line-dasharray': [1.5, 1.5] },
-    })
+    // 画路线（真实路线实线，估算虚线）
+    drawWalkRoute(map, 'day', route?.coords ?? [], route?.isReal ?? false)
   }, [map, styleRev, route])
 
   // 编号标记
   useEffect(() => {
     // 地图没好
     if (!map) return
-    // 每站一个标记：第一站是起点（“起”），后面是 1、2、3……
+    // 每站一个标记：1、2、3……
     const markers = items.map((it, i) =>
-      stopMarker(i === 0 ? '起' : String(i), it.name, i === 0, () => map.flyTo({ center: [it.lng, it.lat], zoom: 17, pitch: 60, duration: 1500 }))
+      stopMarker(String(i + 1), it.name, false, () => map.flyTo({ center: [it.lng, it.lat], zoom: 17, pitch: 60, duration: 1500 }))
         .setLngLat([it.lng, it.lat])
         .addTo(map),
     )
@@ -237,8 +209,8 @@ export default function DayPage({ today = false }: { today?: boolean }) {
   // 删除某一站
   const remove = (i: number) => saveItems(items.filter((_, k) => k !== i))
 
-  // Google Maps 导航链接
-  const gmaps = googleMapsUrl(items)
+  // Google Maps 导航链接（第 1 站是起点）
+  const gmaps = googleMapsDirections(items, false)
   // 路线总距离
   const totalDist = route?.legDistances.reduce((a, b) => a + b, 0) ?? 0
   // 路线总时间
@@ -328,7 +300,7 @@ export default function DayPage({ today = false }: { today?: boolean }) {
 
           {/* 示例说明 */}
           {plan?.isSample && items.length > 0 && (
-            <p className="mt-3 text-[12px] leading-relaxed text-muted">这是演示用的示例安排，可以调整顺序或删除。第 2 步会加上搜索和图钉，直接在地图上添加地点。</p>
+            <p className="mt-3 text-[12px] leading-relaxed text-muted">这是演示用的示例安排，可以调整顺序、删除，或者点下面的「在地图上编辑」添加地点。</p>
           )}
 
           {/* 路线是估算的 */}
@@ -355,11 +327,7 @@ export default function DayPage({ today = false }: { today?: boolean }) {
                   {/* 站点行 */}
                   <div className="flex items-center gap-3">
                     {/* 编号圆圈 */}
-                    <span
-                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[12px] font-bold ${i === 0 ? 'bg-ink text-paper' : 'bg-accent text-on-accent'}`}
-                    >
-                      {i === 0 ? '起' : i}
-                    </span>
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent text-[12px] font-bold text-on-accent">{i + 1}</span>
                     {/* 名字（点一下地图飞过去） */}
                     <button
                       onClick={() => map?.flyTo({ center: [it.lng, it.lat], zoom: 17, pitch: 60, duration: 1500 })}
@@ -382,23 +350,37 @@ export default function DayPage({ today = false }: { today?: boolean }) {
             <div className="mt-6 flex flex-col items-center gap-2 text-center">
               <Icon name="snow" size={28} className="text-line-strong" />
               <p className="text-[14px]">这一天还没有安排</p>
-              <p className="text-[12px] text-muted">第 2 步会加上搜索和图钉，可以直接在地图上添加地点</p>
+              <p className="text-[12px] text-muted">在地图上搜索或放图钉，就能加进这一天</p>
             </div>
           )}
 
+          {/* 在地图上编辑这一天 */}
+          <Link to={`/map?day=${dayIndex}`} className="mt-5 flex h-12 items-center justify-center gap-2 rounded-2xl border border-line-strong text-[14px]">
+            <Icon name={items.length > 0 ? 'edit' : 'plus'} size={17} />
+            {items.length > 0 ? '在地图上编辑' : '在地图上添加地点'}
+          </Link>
+
           {/* 操作按钮 */}
           {items.length > 1 && (
-            <div className="mt-5 flex flex-col gap-2">
-              {/* 顺路排序（起点不动） */}
+            <div className="mt-2 flex flex-col gap-2">
+              {/* 顺路排序（第 1 站不动） */}
               <button onClick={optimize} className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-line-strong text-[14px]">
                 <Icon name="sparkle" size={17} />
-                顺路排序（起点不动）
+                顺路排序（第 1 站不动）
               </button>
-              {/* Google Maps 导航 */}
-              <a href={gmaps} target="_blank" rel="noopener noreferrer" className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-ink text-[14px] text-paper">
-                <Icon name="external" size={17} />
-                用 Google Maps 导航全天路线
-              </a>
+              {/* 导航：App 内 / Google Maps */}
+              <div className="flex gap-2">
+                {/* App 内逐路口导航 */}
+                <Link to={`/nav?day=${dayIndex}`} className="flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl bg-ink text-[14px] text-paper">
+                  <Icon name="navigate" size={17} />
+                  App 内导航
+                </Link>
+                {/* Google Maps */}
+                <a href={gmaps} target="_blank" rel="noopener noreferrer" className="flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl border border-line-strong text-[14px]">
+                  <Icon name="external" size={16} />
+                  Google Maps
+                </a>
+              </div>
               {/* 站点太多时提醒 */}
               {items.length > GMAPS_MAX_WAYPOINTS + 2 && (
                 <p className="text-center text-[11px] text-muted">Google Maps 一次最多 {GMAPS_MAX_WAYPOINTS + 2} 站，超出的部分没有传过去</p>
@@ -416,26 +398,6 @@ export default function DayPage({ today = false }: { today?: boolean }) {
       )}
     </div>
   )
-}
-
-// 生成 Google Maps 多站导航链接（步行）
-function googleMapsUrl(items: DayPlanItem[]): string {
-  // 少于两站
-  if (items.length < 2) return 'https://www.google.com/maps'
-  // 坐标转成 “纬度,经度”
-  const ll = (i: DayPlanItem) => `${i.lat},${i.lng}`
-  // 起点
-  const origin = ll(items[0])
-  // 终点
-  const destination = ll(items[items.length - 1])
-  // 中间的途经点（最多 9 个）
-  const waypoints = items.slice(1, -1).slice(0, GMAPS_MAX_WAYPOINTS).map(ll).join('|')
-  // 拼接链接参数
-  const q = new URLSearchParams({ api: '1', origin, destination, travelmode: 'walking' })
-  // 有途经点才加
-  if (waypoints) q.set('waypoints', waypoints)
-  // 返回完整链接
-  return `https://www.google.com/maps/dir/?${q.toString()}`
 }
 
 // 交通方式对应的图标

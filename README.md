@@ -8,13 +8,15 @@
 
 ---
 
-## 目前完成的功能（第 1 步）
+## 目前完成的功能（第 1–2 步）
 
 | 页面 | 功能 |
 | --- | --- |
 | 首页（行程） | 荷兰、德国、丹麦三国真实地图；整条路线（火车/大巴实线，飞机点线）；GPS 蓝点；点城市飞进 3D 街区；景点建筑染成淡金色 |
-| 今日旅程 | 当天所有站点编号显示在地图上，沿真实街道画出步行路线；每两站间的步行时间；顺路排序；上移/下移/删除；一键用 Google Maps 导航 |
+| 今日旅程 | 当天所有站点编号显示在地图上，沿真实街道画出步行路线；每两站间的步行时间；顺路排序；上移/下移/删除；在地图上编辑；App 内导航 / Google Maps |
 | 未来旅程 | 小地图显示剩下的路线；按天列出之后每天的城市、交通、安排 |
+| 地图 | 搜索店铺/景点/地址；放图钉（拖右边的图钉、长按地图、点搜索结果或地图上的店铺）；图钉可拖动、改名、排序、删除；自动连成步行路线；顺路排序；存到某一天的日程 |
+| 导航 | App 内逐路口步行导航：下一个转向（第几个路口、往哪拐、进入哪条街）、当前街道、剩余距离；地图跟随并朝向前进方向；偏离路线自动重新规划；到达提示；中文语音播报；屏幕常亮；「模拟行走」预览 |
 | 更多 | 深色/浅色/跟随系统；存储状态；建设进度 |
 
 出发日期还没定时，所有日期都显示为「旅途第 N 天」。
@@ -30,7 +32,9 @@
 | 样式 | Tailwind CSS v4 | 颜色和间距统一管理（颜色变量在 `src/styles/index.css`） |
 | 地图 | MapLibre GL JS 6 | 开源免费，支持旋转、倾斜、3D 建筑 |
 | 地图数据 | OpenFreeMap（OpenStreetMap） | 免费、不需要 key |
-| 步行路线 | OSRM（routing.openstreetmap.de） | 免费、不需要 key |
+| 步行路线 / 导航 | OSRM（routing.openstreetmap.de） | 免费、不需要 key，带逐步转向信息 |
+| 地点搜索 | Photon（photon.komoot.io） | 免费、不需要 key，基于 OpenStreetMap |
+| 语音播报 | 浏览器自带的 SpeechSynthesis | 用手机自带的中文语音，不需要联网 |
 | 本地数据库 | Dexie（IndexedDB） | 支持数据结构版本升级和迁移 |
 | 离线 | vite-plugin-pwa（Workbox） | 自动生成 service worker |
 
@@ -48,10 +52,16 @@ src/
     db.ts               数据库表结构、版本迁移
     seed.ts             初始行程数据（只有公开信息）
     hooks.ts            读取数据的 React 钩子
+    pins.ts             图钉（地图标签的草稿，或某一天的日程）
   lib/
     itinerary.ts        行程计算：每天在哪、旅途第几天
     geo.ts              距离、顺路排序、弧线、路线解码
     routing.ts          步行路线（联网 + 本地缓存 + 离线估算）
+    navigation.ts       导航：逐步指引、中文转向描述、实时进度、偏离判断
+    search.ts           地点搜索、根据坐标查地名
+    gmaps.ts            生成 Google Maps 多站导航链接
+    speech.ts           语音播报
+    useWakeLock.ts      导航时屏幕常亮
     theme.ts            深色/浅色模式
     useGeolocation.ts   GPS 定位
   map/
@@ -60,6 +70,7 @@ src/
     layers.ts           图层工具、景点建筑高亮
     markers.ts          城市/景点/编号/我的位置 标记
     tripRoute.ts        城市之间的路线
+    walkRoute.ts        步行路线的画法（实线/虚线）
   components/           图标、底部导航、地图按钮
   pages/                各个页面
 ```
@@ -113,4 +124,4 @@ npm run preview    # 预览打包结果
 
 ## 版权
 
-地图数据 © [OpenStreetMap](https://www.openstreetmap.org/copyright) 贡献者；地图服务 [OpenFreeMap](https://openfreemap.org/)；步行路线 [OSRM](https://project-osrm.org/) / [FOSSGIS](https://routing.openstreetmap.de/)。
+地图数据 © [OpenStreetMap](https://www.openstreetmap.org/copyright) 贡献者；地图服务 [OpenFreeMap](https://openfreemap.org/)；步行路线 [OSRM](https://project-osrm.org/) / [FOSSGIS](https://routing.openstreetmap.de/)；地点搜索 [Photon](https://photon.komoot.io/)。
