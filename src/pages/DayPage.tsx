@@ -1,7 +1,7 @@
 // ============================================================
 // 某一天的旅程（“今日旅程”也是这个页面）
 //   - 上半屏：大地图，当天要去的地方都标上编号，沿真实街道画出步行路线
-//   - 下半屏：当天的顺序清单，每两站之间的步行时间
+//   - 下半屏：当天的顺序清单，每两站之间的步行时间（远的话也显示公交时间），每站可以填时间
 //   - “顺路排序”：自动排出总路程最短的顺序
 //   - 导航：App 内逐路口导航，或把所有站点一起传给 Google Maps
 //   - “在地图上编辑”：去地图标签搜索、放图钉
@@ -31,6 +31,8 @@ import { GMAPS_MAX_WAYPOINTS, googleMapsDirections } from '../lib/gmaps'
 import { useGeolocation } from '../lib/useGeolocation'
 // 引入步行路线
 import { getWalkRoute, type WalkRoute } from '../lib/routing'
+// 引入公交时间
+import { departureTime, getTransitLeg, type TransitLeg } from '../lib/transit'
 // 引入地理工具
 import { boundsOf, formatDistance, formatDuration, optimizeOrder, type LngLat } from '../lib/geo'
 // 引入行程工具
@@ -39,6 +41,12 @@ import { MODE_LABEL, dayLabel } from '../lib/itinerary'
 import { Icon, type IconName } from '../components/Icon'
 // 引入地图按钮
 import { MapButtons } from '../components/MapButtons'
+// 引入底部面板
+import { Sheet } from '../components/Sheet'
+// 引入地点分类中文名
+import { CATEGORY_LABEL } from '../components/PlaceForm'
+// 引入交通方式图标
+import { MODE_ICON } from './SegmentPage'
 // 引入加载画面
 import { Loading } from './HomePage'
 
@@ -73,6 +81,12 @@ export default function DayPage({ today = false }: { today?: boolean }) {
   const [routing, setRouting] = useState(false)
   // 顶部的小提示（例如“已经是最顺路的顺序”）
   const [toast, setToast] = useState<string | null>(null)
+  // 每两站之间的公交方案（下标 i 表示第 i 站到第 i+1 站）
+  const [transit, setTransit] = useState<Record<number, TransitLeg | null>>({})
+  // 正在填时间的站点
+  const [editingTime, setEditingTime] = useState<string | null>(null)
+  // 是否显示“从景点添加”面板
+  const [pickOpen, setPickOpen] = useState(false)
 
   // 站点坐标列表
   const points = useMemo(() => items.map((i) => [i.lng, i.lat] as LngLat), [items])
@@ -128,10 +142,19 @@ export default function DayPage({ today = false }: { today?: boolean }) {
     return () => markers.forEach((m) => m.remove())
   }, [map, items])
 
+  // 当天所在城市的坐标（没有安排时，地图显示这个城市）
+  const cityLng = day?.stop.lng
+  const cityLat = day?.stop.lat
+
   // 地图对准当天所有站点（站点变化时）
   useEffect(() => {
-    // 地图没好或没有站点
-    if (!map || points.length === 0) return
+    // 地图没好
+    if (!map) return
+    // 没有站点：显示当天所在的城市
+    if (points.length === 0) {
+      if (cityLng !== undefined && cityLat !== undefined) map.jumpTo({ center: [cityLng, cityLat], zoom: 13, pitch: 0 })
+      return
+    }
     // 只有一站：飞到那里
     if (points.length === 1) {
       map.jumpTo({ center: points[0], zoom: 15.5, pitch: 45 })
@@ -141,7 +164,7 @@ export default function DayPage({ today = false }: { today?: boolean }) {
     const cam = map.cameraForBounds(boundsOf(points), { padding: { top: 90, bottom: 40, left: 40, right: 72 } })
     // 跳过去
     if (cam) map.jumpTo({ ...cam, pitch: 45, bearing: -12 })
-  }, [map, pointsKey])
+  }, [map, pointsKey, cityLng, cityLat])
 
   // 站点所在的建筑染成淡金色
   useEffect(() => {
@@ -160,6 +183,39 @@ export default function DayPage({ today = false }: { today?: boolean }) {
     // 清除计时器
     return () => clearTimeout(t)
   }, [toast])
+
+  // 当天的日期（查公交时刻表用）
+  const dayDate = day?.date ?? null
+  // 每站的时间拼成的 key（时间变了也要重新查公交）
+  const timesKey = items.map((i) => i.time ?? '').join(',')
+
+  // 步行比较远（超过 15 分钟）的两站之间，查一下坐公交要多久
+  useEffect(() => {
+    // 是否已取消
+    let cancelled = false
+    // 清空旧结果
+    setTransit({})
+    // 没有步行路线就不查
+    if (!route) return
+    // 一个一个查（不同时发很多请求）
+    ;(async () => {
+      for (let i = 0; i < route.legDurations.length; i++) {
+        // 步行不到 15 分钟，不用查公交
+        if (route.legDurations[i] < 900) continue
+        // 查公交（出发时间用这一站填的时间）
+        const leg = await getTransitLeg(points[i], points[i + 1], departureTime(dayDate, items[i]?.time))
+        // 已取消就停
+        if (cancelled) return
+        // 保存
+        setTransit((t) => ({ ...t, [i]: leg }))
+      }
+    })()
+    // 取消
+    return () => {
+      cancelled = true
+    }
+    // 路线、日期、时间变化时重新查
+  }, [route, dayDate, timesKey])
 
   // 加载中
   if (!data || !itin || !day) return <Loading />
@@ -208,6 +264,17 @@ export default function DayPage({ today = false }: { today?: boolean }) {
 
   // 删除某一站
   const remove = (i: number) => saveItems(items.filter((_, k) => k !== i))
+
+  // 设置某一站的时间（空的就清除）
+  const setTime = (i: number, v: string) => saveItems(items.map((x, k) => (k === i ? { ...x, time: v || undefined } : x)))
+
+  // 这个城市可以加进日程的地点（隐藏的不算；已选定的住处排最前）
+  const cityPlaces = data.places
+    .filter((p) => p.stopId === day.stop.id && !p.hidden)
+    .sort((a, b) => Number(b.category === 'hotel' && b.status !== 'candidate') - Number(a.category === 'hotel' && a.status !== 'candidate'))
+
+  // 当天是平安夜或圣诞节时的提醒
+  const holiday = holidayNote(day.date)
 
   // Google Maps 导航链接（第 1 站是起点）
   const gmaps = googleMapsDirections(items, false)
@@ -293,7 +360,16 @@ export default function DayPage({ today = false }: { today?: boolean }) {
             </p>
           )}
 
-          {/* 当天的城际交通 */}
+          {/* 平安夜 / 圣诞节提醒 */}
+          {holiday && (
+            <Link to={`/city/${day.stop.id}?tab=transport`} className="mt-3 flex items-start gap-2 rounded-xl bg-accent-soft px-3 py-2.5 text-[12px] leading-relaxed text-accent">
+              <Icon name="alert" size={15} className="mt-0.5 shrink-0" />
+              <span className="flex-1">{holiday}</span>
+              <Icon name="chevronRight" size={14} className="mt-0.5 shrink-0" />
+            </Link>
+          )}
+
+          {/* 当天的城际交通（点进去看可选方式） */}
           {day.segments.map((seg) => (
             <SegmentCard key={seg.id} seg={seg} stops={data.stops} />
           ))}
@@ -312,18 +388,7 @@ export default function DayPage({ today = false }: { today?: boolean }) {
               {items.map((it, i) => (
                 <li key={it.id}>
                   {/* 两站之间的步行信息 */}
-                  {i > 0 && (
-                    <div className="flex items-center gap-2 py-1 pl-[13px] text-[11px] text-muted">
-                      {/* 竖线 */}
-                      <span className="h-5 w-px bg-line-strong" />
-                      {/* 步行图标 */}
-                      <Icon name="walk" size={14} />
-                      {/* 时间和距离 */}
-                      {route?.legDurations[i - 1] !== undefined
-                        ? `${formatDuration(route.legDurations[i - 1])} · ${formatDistance(route.legDistances[i - 1])}`
-                        : '计算中…'}
-                    </div>
-                  )}
+                  {i > 0 && <LegInfo walk={route ? { duration: route.legDurations[i - 1], distance: route.legDistances[i - 1] } : null} transit={transit[i - 1]} />}
                   {/* 站点行 */}
                   <div className="flex items-center gap-3">
                     {/* 编号圆圈 */}
@@ -335,6 +400,30 @@ export default function DayPage({ today = false }: { today?: boolean }) {
                     >
                       {it.name}
                     </button>
+                    {/* 时间：点一下填写 */}
+                    {editingTime === it.id ? (
+                      <input
+                        // 时间选择
+                        type="time"
+                        // 读屏文字
+                        aria-label={`${it.name} 的时间`}
+                        // 自动聚焦
+                        autoFocus
+                        // 当前值
+                        defaultValue={it.time ?? ''}
+                        // 离开时保存
+                        onBlur={(e) => {
+                          setTime(i, e.target.value)
+                          setEditingTime(null)
+                        }}
+                        // 样式
+                        className="h-9 w-[92px] shrink-0 rounded-lg border border-line-strong bg-paper px-1.5 text-[13px] text-ink"
+                      />
+                    ) : (
+                      <button onClick={() => setEditingTime(it.id)} className={`h-8 shrink-0 rounded-full px-2.5 text-[12px] ${it.time ? 'bg-ink text-paper' : 'bg-oat text-muted'}`}>
+                        {it.time ?? '时间'}
+                      </button>
+                    )}
                     {/* 上移 */}
                     <SmallBtn label="上移" icon="chevronUp" disabled={i === 0} onClick={() => move(i, -1)} />
                     {/* 下移 */}
@@ -354,11 +443,19 @@ export default function DayPage({ today = false }: { today?: boolean }) {
             </div>
           )}
 
-          {/* 在地图上编辑这一天 */}
-          <Link to={`/map?day=${dayIndex}`} className="mt-5 flex h-12 items-center justify-center gap-2 rounded-2xl border border-line-strong text-[14px]">
-            <Icon name={items.length > 0 ? 'edit' : 'plus'} size={17} />
-            {items.length > 0 ? '在地图上编辑' : '在地图上添加地点'}
-          </Link>
+          {/* 添加地点：从景点列表挑 / 在地图上编辑 */}
+          <div className="mt-5 flex gap-2">
+            {/* 从景点列表挑 */}
+            <button onClick={() => setPickOpen(true)} className="flex h-12 flex-1 items-center justify-center gap-1.5 rounded-2xl border border-line-strong text-[14px]">
+              <Icon name="plus" size={16} />
+              从景点添加
+            </button>
+            {/* 在地图上编辑 */}
+            <Link to={`/map?day=${dayIndex}`} className="flex h-12 flex-1 items-center justify-center gap-1.5 rounded-2xl border border-line-strong text-[14px]">
+              <Icon name="map" size={16} />
+              在地图上编辑
+            </Link>
+          </div>
 
           {/* 操作按钮 */}
           {items.length > 1 && (
@@ -390,9 +487,61 @@ export default function DayPage({ today = false }: { today?: boolean }) {
         </div>
       </div>
 
+      {/* 从景点添加 */}
+      {pickOpen && (
+        <Sheet title={`添加到${dayLabel(day)}`} onClose={() => setPickOpen(false)}>
+          {/* 没有地点 */}
+          {cityPlaces.length === 0 && (
+            <p className="py-6 text-center text-[13px] leading-relaxed text-muted">
+              {day.stop.name} 还没有酒店或景点。
+              <br />
+              可以先去
+              <Link to={`/city/${day.stop.id}?tab=spots`} className="mx-1 text-accent underline">
+                城市详情
+              </Link>
+              添加。
+            </p>
+          )}
+          {/* 地点列表 */}
+          <ul className="flex flex-col gap-2 pb-2">
+            {cityPlaces.map((p) => {
+              // 已经在当天日程里了
+              const added = items.some((it) => it.placeId === p.id)
+              // 一行
+              return (
+                <li key={p.id}>
+                  <button
+                    // 已加过的不能重复加
+                    disabled={added}
+                    // 加到最后
+                    onClick={async () => {
+                      await saveItems([...items, { id: `item-${crypto.randomUUID()}`, placeId: p.id, name: p.name, lat: p.lat, lng: p.lng }])
+                      setToast(`已添加「${p.name}」`)
+                    }}
+                    className="flex w-full items-center justify-between gap-3 rounded-2xl border border-line px-4 py-3 text-left disabled:opacity-50"
+                  >
+                    <span className="min-w-0">
+                      {/* 名称 */}
+                      <span className="block truncate text-[14px] font-medium">{p.name}</span>
+                      {/* 分类 */}
+                      <span className="block text-[12px] text-muted">
+                        {p.category === 'hotel' && p.status !== 'candidate' ? '住处' : CATEGORY_LABEL[p.category]}
+                        {p.duration && ` · 建议 ${p.duration}`}
+                      </span>
+                    </span>
+                    {/* 状态 */}
+                    <span className="shrink-0 text-[12px] text-muted">{added ? '已在日程里' : <Icon name="plus" size={16} />}</span>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        </Sheet>
+      )}
+
       {/* 顶部小提示 */}
       {toast && (
-        <div role="status" className="pointer-events-none absolute inset-x-0 top-[calc(max(env(safe-area-inset-top),16px)+56px)] flex justify-center">
+        <div role="status" className="pointer-events-none absolute inset-x-0 top-[calc(max(env(safe-area-inset-top),16px)+56px)] z-[60] flex justify-center">
           <span className="rounded-full bg-ink px-4 py-2 text-[13px] text-paper shadow-lg">{toast}</span>
         </div>
       )}
@@ -400,18 +549,17 @@ export default function DayPage({ today = false }: { today?: boolean }) {
   )
 }
 
-// 交通方式对应的图标
-const MODE_ICON: Record<Segment['mode'], IconName> = { train: 'train', bus: 'bus', flight: 'plane', ferry: 'bus', car: 'bus', tbd: 'question' }
-
 // 城际交通卡片
 function SegmentCard({ seg, stops }: { seg: Segment; stops: Stop[] }) {
   // 出发地
   const from = stops.find((s) => s.id === seg.fromStopId)
   // 目的地
   const to = stops.find((s) => s.id === seg.toStopId)
-  // 返回卡片
+  // 选定的方式
+  const chosen = seg.options?.find((o) => o.id === seg.chosenOptionId)
+  // 返回卡片（点进去看可选方式）
   return (
-    <div className="mt-3 flex items-center gap-3 rounded-2xl border border-line bg-paper/60 px-3.5 py-3">
+    <Link to={`/segment/${seg.id}`} className="mt-3 flex items-center gap-3 rounded-2xl border border-line bg-paper/60 px-3.5 py-3">
       {/* 交通图标 */}
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-oat text-ink">
         <Icon name={MODE_ICON[seg.mode]} size={18} />
@@ -422,19 +570,62 @@ function SegmentCard({ seg, stops }: { seg: Segment; stops: Stop[] }) {
         <div className="truncate text-[14px] font-medium">
           {from?.name} → {to?.name}
         </div>
-        {/* 方式、时段、备注 */}
+        {/* 方式、时段：选了方式显示运营商，没选显示有几种可选 */}
         <div className="truncate text-[12px] text-muted">
-          {MODE_LABEL[seg.mode]}
+          {chosen ? `${MODE_LABEL[chosen.mode]} · ${chosen.provider}` : MODE_LABEL[seg.mode]}
           {seg.timeOfDay && ` · ${seg.timeOfDay}`}
-          {seg.note && ` · ${seg.note}`}
+          {!chosen && seg.options?.length ? ` · ${seg.options.length} 种可选方式` : ''}
         </div>
       </div>
       {/* 是否已订 */}
       <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] ${seg.booked ? 'bg-sage-soft text-sage' : 'bg-accent-soft text-accent'}`}>
         {seg.booked ? '已订' : '未订'}
       </span>
+      {/* 箭头 */}
+      <Icon name="chevronRight" size={15} className="shrink-0 text-muted" />
+    </Link>
+  )
+}
+
+// 两站之间的交通信息：步行时间和距离；如果公交明显更快，也显示公交
+function LegInfo({ walk, transit }: { walk: { duration: number; distance: number } | null; transit: TransitLeg | null | undefined }) {
+  // 公交比步行快 3 分钟以上才显示
+  const showTransit = walk && transit && transit.duration < walk.duration - 180
+  // 返回
+  return (
+    <div className="flex items-stretch gap-2 py-1 pl-[13px] text-[11px] text-muted">
+      {/* 竖线 */}
+      <span className="w-px shrink-0 bg-line-strong" />
+      <div className="flex flex-col gap-0.5 py-0.5">
+        {/* 步行 */}
+        <span className="flex items-center gap-1.5">
+          <Icon name="walk" size={14} />
+          {walk ? `步行 ${formatDuration(walk.duration)} · ${formatDistance(walk.distance)}` : '计算中…'}
+        </span>
+        {/* 公交 */}
+        {showTransit && (
+          <span className="flex items-center gap-1.5 text-ink">
+            <Icon name="train" size={14} />
+            公交约 {formatDuration(transit.duration)}（{transit.summary}）
+          </span>
+        )}
+      </div>
     </div>
   )
+}
+
+// 平安夜 / 圣诞节的提醒文字（日期没定或不是这几天就返回 null）
+function holidayNote(date: string | null): string | null {
+  // 没有日期
+  if (!date) return null
+  // 月-日
+  const md = date.slice(5)
+  // 平安夜
+  if (md === '12-24') return '平安夜：商店和很多景点下午提前关门，晚上公交班次减少。点这里看本城的交通提醒。'
+  // 圣诞节两天
+  if (md === '12-25' || md === '12-26') return '圣诞节：多数商店关门，部分景点不开放，公交按周日 / 节假日时刻表。点这里看本城的交通提醒。'
+  // 其他日子
+  return null
 }
 
 // 小图标按钮（上移、下移、删除）
@@ -449,7 +640,7 @@ function SmallBtn({ label, icon, disabled, onClick }: { label: string; icon: Ico
       // 点击
       onClick={onClick}
       // 36 像素方形按钮，禁用时变淡
-      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted disabled:opacity-30"
+      className="flex h-9 w-8 shrink-0 items-center justify-center rounded-full text-muted disabled:opacity-30"
     >
       <Icon name={icon} size={16} />
     </button>

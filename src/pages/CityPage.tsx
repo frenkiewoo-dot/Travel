@@ -7,15 +7,15 @@
 // ============================================================
 
 // 引入 React 钩子
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 // 引入路由工具
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 // 引入数据钩子
 import { useItinerary, useTripData } from '../db/hooks'
 // 引入数据结构
-import type { Place, PlaceCategory, Segment } from '../db/schema'
+import type { Place, PlaceCategory, Segment, Stop } from '../db/schema'
 // 引入数据操作
-import { addPlaceToDay, deleteCandidateHotels, setOtherHotelsHidden } from '../db/trip'
+import { addPlaceToDay, deleteCandidateHotels, setOtherHotelsHidden, updateStop } from '../db/trip'
 // 引入行程工具
 import { MODE_LABEL, computeSpans, dayLabel } from '../lib/itinerary'
 // 引入地理工具
@@ -32,7 +32,7 @@ import { useGeolocation } from '../lib/useGeolocation'
 import { Icon, type IconName } from '../components/Icon'
 import { PlaceCard, statusClass } from '../components/PlaceCard'
 import { PlaceForm, STATUS_LABEL } from '../components/PlaceForm'
-import { Sheet } from '../components/Sheet'
+import { Sheet, TEXTAREA } from '../components/Sheet'
 import { MapButtons } from '../components/MapButtons'
 // 引入加载画面
 import { Loading } from './HomePage'
@@ -297,32 +297,31 @@ export default function CityPage() {
           {/* ===== 交通 ===== */}
           {tab === 'transport' && (
             <div className="flex flex-col gap-2.5">
-              {/* 到达和离开这个城市的交通 */}
-              {segs.map((s) => (
-                <div key={s.id} className="flex items-center gap-3 rounded-2xl border border-line bg-card p-3.5">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-oat">
-                    <Icon name={MODE_ICON[s.mode]} size={18} />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-[14px] font-medium">{segText(s, data.stops)}</div>
-                    <div className="truncate text-[12px] text-muted">
-                      {s.toStopId === stop.id ? '到达' : '离开'}
-                      {s.timeOfDay && ` · ${s.timeOfDay}`}
-                      {s.note && ` · ${s.note}`}
+              {/* 到达和离开这个城市的城际交通（点进去看可选方式） */}
+              {segs.map((s) => {
+                // 选定的方式
+                const chosen = s.options?.find((o) => o.id === s.chosenOptionId)
+                // 一行
+                return (
+                  <Link key={s.id} to={`/segment/${s.id}`} className="flex items-center gap-3 rounded-2xl border border-line bg-card p-3.5">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-oat">
+                      <Icon name={MODE_ICON[s.mode]} size={18} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[14px] font-medium">{segText(s, data.stops)}</div>
+                      <div className="truncate text-[12px] text-muted">
+                        {s.toStopId === stop.id ? '到达' : '离开'}
+                        {s.timeOfDay && ` · ${s.timeOfDay}`}
+                        {chosen ? ` · ${chosen.provider}` : s.options?.length ? ` · ${s.options.length} 种可选方式` : ''}
+                      </div>
                     </div>
-                  </div>
-                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] ${s.booked ? 'bg-sage-soft text-sage' : 'bg-accent-soft text-accent'}`}>{s.booked ? '已订' : '未订'}</span>
-                </div>
-              ))}
-              {/* 编辑交通 */}
-              <Link to="/trip" className="flex h-11 items-center justify-center gap-1.5 rounded-xl border border-line-strong text-[13px]">
-                <Icon name="edit" size={15} />
-                在「编辑行程」里修改交通
-              </Link>
-              {/* 第 4 步说明 */}
-              <p className="mt-1 rounded-2xl bg-oat p-3.5 text-[12px] leading-relaxed text-muted">
-                第 4 步会加上：每段城际交通的可选方式（火车 / 大巴 / 飞机）、大致时长和价格、预订链接；市内交通的票种、推荐 App、机场和车站到住处怎么走。
-              </p>
+                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] ${s.booked ? 'bg-sage-soft text-sage' : 'bg-accent-soft text-accent'}`}>{s.booked ? '已订' : '未订'}</span>
+                    <Icon name="chevronRight" size={15} className="shrink-0 text-muted" />
+                  </Link>
+                )
+              })}
+              {/* 市内交通指南 */}
+              <CityGuideView stop={stop} hotel={chosenHotel ?? null} />
             </div>
           )}
         </div>
@@ -527,5 +526,152 @@ function CityMap({ places, center, focusId, onOpen }: { places: Place[]; center:
         </div>
       )}
     </div>
+  )
+}
+
+// 市内交通指南：车票、App、到了以后怎么走、节日提醒、我的笔记、来源
+function CityGuideView({ stop, hotel }: { stop: Stop; hotel: Place | null }) {
+  // 指南（推荐内容）
+  const g = stop.guide
+  // 返回
+  return (
+    <div className="mt-2 flex flex-col gap-3">
+      {/* 节日提醒（最重要，放最前面） */}
+      {g && g.holidayNotes.length > 0 && (
+        <GuideSection title="圣诞期间" icon="alert" accent>
+          <ul className="flex flex-col gap-1.5">
+            {g.holidayNotes.map((t) => (
+              <li key={t} className="text-[13px] leading-relaxed">
+                {t}
+              </li>
+            ))}
+          </ul>
+        </GuideSection>
+      )}
+
+      {/* 到了以后怎么走 */}
+      {g && g.arrivals.length > 0 && (
+        <GuideSection title={hotel ? `到了以后怎么去「${hotel.name}」` : '到了以后怎么进城'} icon="pin">
+          <ul className="flex flex-col gap-3">
+            {g.arrivals.map((a) => (
+              <li key={a.name}>
+                {/* 车站名 */}
+                <div className="text-[14px] font-medium">
+                  {a.name} <span className="text-[12px] font-normal text-muted">{a.nameZh}</span>
+                </div>
+                {/* 怎么走 */}
+                <p className="mt-0.5 text-[13px] leading-relaxed text-muted">{a.how}</p>
+                {/* 一键查路线：选好住处就到住处，否则到市中心 */}
+                <a
+                  href={googleMapsDirections([a, hotel ?? { lat: stop.lat, lng: stop.lng }], false, 'transit')}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-1.5 inline-flex h-9 items-center gap-1.5 rounded-full border border-line-strong px-3 text-[12px]"
+                >
+                  <Icon name="navigate" size={13} />
+                  {hotel ? '公交路线到住处' : '公交路线到市中心'}
+                </a>
+              </li>
+            ))}
+          </ul>
+          {/* 还没选住处的提示 */}
+          {!hotel && <p className="mt-3 text-[12px] text-muted">在「酒店」里选定住处后，这里会直接显示到住处的路线。</p>}
+        </GuideSection>
+      )}
+
+      {/* 车票 */}
+      {g && g.tickets.length > 0 && (
+        <GuideSection title="车票" icon="ticket">
+          <ul className="flex flex-col gap-2.5">
+            {g.tickets.map((t) => (
+              <li key={t.name}>
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="text-[14px] font-medium">{t.name}</span>
+                  <span className="shrink-0 text-[13px]">{t.price}</span>
+                </div>
+                {t.note && <p className="text-[12px] leading-relaxed text-muted">{t.note}</p>}
+              </li>
+            ))}
+          </ul>
+        </GuideSection>
+      )}
+
+      {/* 推荐 App */}
+      {g && g.apps.length > 0 && (
+        <GuideSection title="推荐 App" icon="more">
+          <ul className="flex flex-col gap-2">
+            {g.apps.map((a) => (
+              <li key={a.name} className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-[14px] font-medium">{a.name}</div>
+                  <div className="text-[12px] text-muted">{a.use}</div>
+                </div>
+                {a.url && (
+                  <a href={a.url} target="_blank" rel="noopener noreferrer" aria-label={`打开 ${a.name} 网站`} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-line-strong">
+                    <Icon name="external" size={14} />
+                  </a>
+                )}
+              </li>
+            ))}
+          </ul>
+        </GuideSection>
+      )}
+
+      {/* 小贴士 */}
+      {g && g.tips.length > 0 && (
+        <GuideSection title="小贴士" icon="sparkle">
+          <ul className="flex list-disc flex-col gap-1.5 pl-4">
+            {g.tips.map((t) => (
+              <li key={t} className="text-[13px] leading-relaxed">
+                {t}
+              </li>
+            ))}
+          </ul>
+        </GuideSection>
+      )}
+
+      {/* 没有指南 */}
+      {!g && <p className="rounded-2xl bg-oat p-4 text-[13px] leading-relaxed text-muted">这个城市还没有交通指南（推荐内容目前只覆盖原始行程里的城市）。可以在下面记自己的笔记。</p>}
+
+      {/* 我的笔记（离开输入框时保存） */}
+      <GuideSection title="我的笔记" icon="edit">
+        <textarea
+          defaultValue={stop.transportNote ?? ''}
+          onBlur={(e) => updateStop(stop.id, { transportNote: e.target.value.trim() || undefined })}
+          placeholder="例如：买了 72 小时 City Pass；住处最近的地铁站是…"
+          className={TEXTAREA}
+        />
+      </GuideSection>
+
+      {/* 来源 */}
+      {g && (
+        <div className="px-1 text-[11px] leading-relaxed text-muted">
+          <span>推荐 · 需核实 · 调研于 {g.updated}。来源：</span>
+          {g.sources.map((src, i) => (
+            <span key={src.url}>
+              {i > 0 && '；'}
+              <a href={src.url} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
+                {src.label}
+              </a>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// 指南里的一块
+function GuideSection({ title, icon, accent, children }: { title: string; icon: IconName; accent?: boolean; children: ReactNode }) {
+  // 返回卡片
+  return (
+    <section className={`rounded-2xl p-4 ${accent ? 'bg-accent-soft text-accent' : 'border border-line bg-card'}`}>
+      {/* 标题 */}
+      <h3 className="mb-2 flex items-center gap-1.5 text-[14px] font-semibold">
+        <Icon name={icon} size={15} />
+        {title}
+      </h3>
+      {children}
+    </section>
   )
 }
