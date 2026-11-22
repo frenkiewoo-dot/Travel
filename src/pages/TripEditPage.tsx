@@ -2,7 +2,7 @@
 // 编辑行程（/trip）
 //   - 旅行名称、副标题、出发日期（可以“待定”）、人数
 //   - 城市：添加、编辑、删除、调整顺序、住几晚
-//   - 城市之间的交通：方式、时段、是否已订、备注
+//   - 城市之间的交通：点进去看可选方式（交通详情页）
 // 改动立即保存；日程会跟着城市自动挪动
 // ============================================================
 
@@ -13,22 +13,22 @@ import { Link, useNavigate } from 'react-router-dom'
 // 引入数据钩子
 import { useItinerary, useTripData } from '../db/hooks'
 // 引入数据结构
-import type { Segment, Stop, StopKind, TransportMode } from '../db/schema'
+import type { Stop, StopKind } from '../db/schema'
 // 引入数据操作
-import { saveStops, updateSegment, updateTrip } from '../db/trip'
+import { saveStops, updateTrip } from '../db/trip'
 // 引入行程工具
 import { MODE_LABEL, computeSpans, dayLabel } from '../lib/itinerary'
 // 引入坐标类型
 import type { LngLat } from '../lib/geo'
 // 引入组件
 import { Icon, type IconName } from '../components/Icon'
-import { Field, INPUT, Segmented, Sheet, TEXTAREA } from '../components/Sheet'
+import { Field, INPUT, Segmented } from '../components/Sheet'
 import { StopForm, Stepper, type StopDraft } from '../components/StopForm'
 // 引入加载画面
 import { Loading } from './HomePage'
 
-// 交通方式图标
-const MODE_ICON: Record<TransportMode, IconName> = { train: 'train', bus: 'bus', flight: 'plane', ferry: 'bus', car: 'bus', tbd: 'question' }
+// 引入交通方式图标
+import { MODE_ICON } from './SegmentPage'
 // 地点类型的中文
 const KIND_LABEL: Record<StopKind, string> = { stay: '住宿', transit: '路过', home: '出发 / 回家' }
 
@@ -42,8 +42,6 @@ export default function TripEditPage() {
   const itin = useItinerary(data)
   // 城市表单：null 不显示；{ stop: null } 新建；{ stop } 编辑
   const [stopForm, setStopForm] = useState<{ stop: Stop | null } | null>(null)
-  // 正在编辑的交通段
-  const [segForm, setSegForm] = useState<Segment | null>(null)
 
   // 每个城市的时间段
   const spans = useMemo(() => (data ? computeSpans(data.stops) : []), [data])
@@ -222,18 +220,24 @@ export default function TripEditPage() {
                     </Link>
                   )}
                 </div>
-                {/* 交通行 */}
+                {/* 交通行：点进去看可选方式、选方式、标记已订 */}
                 {seg && (
-                  <button onClick={() => setSegForm(seg)} className="my-1 ml-[17px] flex w-[calc(100%-17px)] items-center gap-2.5 border-l-2 border-dashed border-line-strong py-2 pl-4 text-left">
+                  <Link to={`/segment/${seg.id}`} className="my-1 ml-[17px] flex w-[calc(100%-17px)] items-center gap-2.5 border-l-2 border-dashed border-line-strong py-2 pl-4 text-left">
                     <Icon name={MODE_ICON[seg.mode]} size={16} className="shrink-0 text-muted" />
                     <span className="min-w-0 flex-1 truncate text-[13px]">
                       {MODE_LABEL[seg.mode]}
                       {seg.timeOfDay && ` · ${seg.timeOfDay}`}
-                      {seg.note && <span className="text-muted"> · {seg.note}</span>}
+                      <span className="text-muted">
+                        {seg.options?.find((o) => o.id === seg.chosenOptionId)?.provider
+                          ? ` · ${seg.options.find((o) => o.id === seg.chosenOptionId)!.provider}`
+                          : seg.options?.length
+                            ? ` · ${seg.options.length} 种可选`
+                            : ''}
+                      </span>
                     </span>
                     <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] ${seg.booked ? 'bg-sage-soft text-sage' : 'bg-accent-soft text-accent'}`}>{seg.booked ? '已订' : '未订'}</span>
-                    <Icon name="edit" size={14} className="shrink-0 text-muted" />
-                  </button>
+                    <Icon name="chevronRight" size={14} className="shrink-0 text-muted" />
+                  </Link>
                 )}
               </li>
             )
@@ -249,8 +253,6 @@ export default function TripEditPage() {
 
       {/* 城市表单 */}
       {stopForm && <StopForm initial={stopForm.stop} near={near} onSave={onStopSaved} onClose={() => setStopForm(null)} />}
-      {/* 交通表单 */}
-      {segForm && <SegmentForm seg={segForm} stops={stops} onClose={() => setSegForm(null)} />}
     </div>
   )
 }
@@ -262,82 +264,5 @@ function IconBtn({ label, icon, onClick, disabled }: { label: string; icon: Icon
     <button aria-label={label} disabled={disabled} onClick={onClick} className="flex h-10 w-10 items-center justify-center rounded-full text-muted disabled:opacity-30">
       <Icon name={icon} size={17} />
     </button>
-  )
-}
-
-// 交通方式选项
-const MODES: TransportMode[] = ['train', 'bus', 'flight', 'ferry', 'car', 'tbd']
-
-// 交通表单
-function SegmentForm({ seg, stops, onClose }: { seg: Segment; stops: Stop[]; onClose: () => void }) {
-  // 方式
-  const [mode, setMode] = useState<TransportMode>(seg.mode)
-  // 时段
-  const [timeOfDay, setTimeOfDay] = useState(seg.timeOfDay ?? '')
-  // 是否已订
-  const [booked, setBooked] = useState(seg.booked)
-  // 备注
-  const [note, setNote] = useState(seg.note ?? '')
-  // 出发地
-  const from = stops.find((s) => s.id === seg.fromStopId)?.name
-  // 目的地
-  const to = stops.find((s) => s.id === seg.toStopId)?.name
-
-  // 保存
-  const save = async () => {
-    // 写入
-    await updateSegment(seg.id, { mode, timeOfDay: timeOfDay.trim() || undefined, booked, note: note.trim() || undefined })
-    // 关闭
-    onClose()
-  }
-
-  // 返回表单
-  return (
-    <Sheet
-      title={`${from} → ${to}`}
-      onClose={onClose}
-      footer={
-        <div className="flex gap-2">
-          <button onClick={onClose} className="h-12 flex-1 rounded-2xl border border-line-strong text-[15px]">
-            取消
-          </button>
-          <button onClick={save} className="h-12 flex-[2] rounded-2xl bg-ink text-[15px] text-paper">
-            保存
-          </button>
-        </div>
-      }
-    >
-      {/* 方式 */}
-      <Field label="交通方式" group>
-        <div className="flex flex-wrap gap-1.5">
-          {MODES.map((m) => (
-            <button key={m} type="button" aria-pressed={mode === m} onClick={() => setMode(m)} className={`flex h-10 items-center gap-1.5 rounded-full px-3.5 text-[13px] ${mode === m ? 'bg-ink text-paper' : 'bg-oat'}`}>
-              <Icon name={MODE_ICON[m]} size={15} />
-              {MODE_LABEL[m]}
-            </button>
-          ))}
-        </div>
-      </Field>
-      {/* 时段 */}
-      <Field label="时间">
-        <input value={timeOfDay} onChange={(e) => setTimeOfDay(e.target.value)} placeholder="例如 上午、下午，或 09:15 出发" className={INPUT} />
-      </Field>
-      {/* 是否已订 */}
-      <Field label="是否已订票" group>
-        <Segmented
-          label="是否已订票"
-          value={booked ? 'yes' : 'no'}
-          options={[
-            { value: 'no', label: '未订' },
-            { value: 'yes', label: '已订' },
-          ]}
-          onChange={(v) => setBooked(v === 'yes')}
-        />
-      </Field>
-      {/* 备注 */}
-      <Field label="备注" hint="第 5 步的票夹可以把车票关联到这一段">
-        <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="例如 FlixBus N123，座位 12A" className={TEXTAREA} />
-      </Field>
-    </Sheet>
   )
 }

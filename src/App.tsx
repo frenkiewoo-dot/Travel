@@ -18,6 +18,7 @@ import MapPage from './pages/MapPage'
 import NavPage from './pages/NavPage'
 import CityPage from './pages/CityPage'
 import TripEditPage from './pages/TripEditPage'
+import SegmentPage from './pages/SegmentPage'
 
 // App 组件
 export default function App() {
@@ -51,6 +52,8 @@ function Shell() {
             <Route path="/day/:n" element={<DayPage />} />
             {/* 城市详情 */}
             <Route path="/city/:id" element={<CityPage />} />
+            {/* 城际交通详情 */}
+            <Route path="/segment/:id" element={<SegmentPage />} />
             {/* 编辑行程 */}
             <Route path="/trip" element={<TripEditPage />} />
             {/* 未来旅程 */}
