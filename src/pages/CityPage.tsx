@@ -454,8 +454,8 @@ function CityMap({ places, center, focusId, onOpen }: { places: Place[]; center:
     }
     // 少于两个地点：显示城市中心
     if (places.length < 2) return
-    // 装下全部
-    const cam = map.cameraForBounds(boundsOf(places.map((p) => [p.lng, p.lat] as LngLat)), { padding: { top: 50, bottom: 60, left: 40, right: 80 } })
+    // 装下全部（右边多留一些，给已选定地点的名字标签）
+    const cam = map.cameraForBounds(boundsOf(places.map((p) => [p.lng, p.lat] as LngLat)), { padding: { top: 60, bottom: 70, left: 40, right: 150 } })
     // 跳过去
     if (cam) map.jumpTo(cam)
     // 只在地图创建时执行一次
