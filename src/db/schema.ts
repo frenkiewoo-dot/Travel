@@ -126,10 +126,22 @@ export interface Place {
   url?: string
   // 价格说明，例如 “约 €30/晚”
   priceNote?: string
+  // 门票（景点用），例如 “€15，学生 €8”
+  ticket?: string
+  // 开放时间（景点用）
+  openingHours?: string
+  // 建议游玩时长（景点用），例如 “1.5 小时”
+  duration?: string
+  // 节日提醒，例如 “12/24 下午关门”
+  holidayNote?: string
+  // 信息来源链接（推荐项目用，方便核实）
+  sourceUrl?: string
   // 备注
   note?: string
   // 是否隐藏（选定酒店后隐藏其余候选）
   hidden?: boolean
+  // 创建时间（排序用；旧数据没有这个字段）
+  createdAt?: number
 }
 
 // ---------- 每天的日程 ----------

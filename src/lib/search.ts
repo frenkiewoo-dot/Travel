@@ -22,6 +22,10 @@ export interface SearchResult {
   address: string
   // 坐标
   lngLat: LngLat
+  // 国家代码，例如 DE
+  countryCode: string
+  // 城市名
+  city: string
 }
 
 // Photon 返回的单个结果里我们用到的字段
@@ -42,6 +46,7 @@ interface PhotonFeature {
     district?: string
     locality?: string
     country?: string
+    countrycode?: string
   }
 }
 
@@ -118,6 +123,10 @@ function toResult(f: PhotonFeature): SearchResult {
     address,
     // 坐标（Photon 也是 [经度, 纬度]）
     lngLat: [f.geometry.coordinates[0], f.geometry.coordinates[1]],
+    // 国家代码
+    countryCode: (p.countrycode ?? '').toUpperCase(),
+    // 城市（地点本身是城市时，用它的名字）
+    city: p.city ?? (p.osm_value === 'city' || p.osm_value === 'town' ? (p.name ?? '') : ''),
   }
 }
 
