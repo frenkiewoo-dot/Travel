@@ -409,6 +409,10 @@ input[type="search"]::-webkit-search-decoration {
   border-radius: 8px;
   border: 1px solid var(--line);
   white-space: nowrap;
+  /* 名字太长就用省略号 */
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .place-marker.is-chosen .label {
   display: inline;
