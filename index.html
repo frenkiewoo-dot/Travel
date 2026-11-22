@@ -1,0 +1,33 @@
+<!doctype html>
+<!-- 页面语言：简体中文 -->
+<html lang="zh-CN">
+  <head>
+    <!-- 字符编码 -->
+    <meta charset="UTF-8" />
+    <!-- 移动端视口：铺满屏幕（包括 iPhone 刘海区域），禁止双击缩放网页本身（地图自己会缩放） -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+    <!-- 浅色模式时浏览器顶栏的颜色 -->
+    <meta name="theme-color" content="#F6F1E9" media="(prefers-color-scheme: light)" />
+    <!-- 深色模式时浏览器顶栏的颜色 -->
+    <meta name="theme-color" content="#1E1915" media="(prefers-color-scheme: dark)" />
+    <!-- iPhone：允许“添加到主屏幕”后全屏运行 -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <!-- iPhone：状态栏透明，内容延伸到状态栏下面 -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <!-- iPhone 主屏幕图标下面显示的名字 -->
+    <meta name="apple-mobile-web-app-title" content="Noël" />
+    <!-- 浏览器标签页图标 -->
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <!-- iPhone 主屏幕图标 -->
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <!-- 页面标题 -->
+    <title>Noël 旅行</title>
+  </head>
+  <body>
+    <!-- React 会把整个 App 渲染到这个 div 里 -->
+    <div id="root"></div>
+    <!-- 程序入口 -->
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

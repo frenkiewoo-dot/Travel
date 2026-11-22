@@ -1,0 +1,353 @@
+/* 引入 Tailwind（v4 写法，一行就够） */
+@import "tailwindcss";
+/* 引入地图引擎自带的样式（控件、弹窗等） */
+@import "maplibre-gl/dist/maplibre-gl.css";
+
+/* 让 Tailwind 的 dark: 前缀跟随 <html data-theme="dark"> */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* ===== 颜色变量：浅色模式（法式奶油风） ===== */
+:root {
+  /* 页面底色：奶油白 */
+  --paper: #F6F1E9;
+  /* 卡片底色：更亮一点的暖白 */
+  --card: #FCFAF6;
+  /* 次级底色：燕麦色（标签、分段按钮底） */
+  --oat: #EFE7DA;
+  /* 主文字：深棕 */
+  --ink: #2E2823;
+  /* 次要文字：灰褐（在奶油底上对比度约 5.6:1，满足可读性） */
+  --muted: #6B6157;
+  /* 分隔线 / 卡片描边 */
+  --line: #E8DFD2;
+  /* 更深一点的描边（按钮边框） */
+  --line-strong: #CDBFAA;
+  /* 点缀色：低饱和酒红 */
+  --accent: #7A3434;
+  /* 点缀色的浅底（提醒条） */
+  --accent-soft: #F5E9E4;
+  /* 酒红上的文字颜色 */
+  --on-accent: #FCFAF6;
+  /* 鼠尾草绿：表示“已预订/已完成” */
+  --sage: #4A5A3C;
+  /* 鼠尾草绿的浅底 */
+  --sage-soft: #E6EBDF;
+  /* 淡金：地图上的著名景点 */
+  --gold: #B08A4A;
+  /* 定位蓝点 */
+  --locate: #3E6B8A;
+  /* 浮在地图上的半透明卡片底色 */
+  --glass: rgba(252, 250, 246, 0.9);
+  /* 阴影颜色 */
+  --shadow: rgba(46, 40, 35, 0.10);
+  /* 告诉浏览器：表单控件等用浅色 */
+  color-scheme: light;
+}
+
+/* ===== 颜色变量：深色模式（暖咖啡色，不用纯黑） ===== */
+:root[data-theme="dark"] {
+  /* 页面底色：深咖啡 */
+  --paper: #1E1915;
+  /* 卡片底色 */
+  --card: #2A231E;
+  /* 次级底色 */
+  --oat: #352D26;
+  /* 主文字：奶油色 */
+  --ink: #EFE7DA;
+  /* 次要文字 */
+  --muted: #B3A795;
+  /* 分隔线 */
+  --line: #3A312A;
+  /* 深一点的描边 */
+  --line-strong: #54483D;
+  /* 点缀色：深色下改成柔和的玫瑰色，保证看得清 */
+  --accent: #E2B2A8;
+  /* 点缀色浅底 */
+  --accent-soft: #3A2826;
+  /* 点缀色上的文字 */
+  --on-accent: #2A1E1B;
+  /* 鼠尾草绿（亮一点） */
+  --sage: #A9B79A;
+  /* 鼠尾草绿底 */
+  --sage-soft: #2B3326;
+  /* 淡金 */
+  --gold: #D9BE8C;
+  /* 定位蓝点 */
+  --locate: #7FA8C4;
+  /* 半透明卡片 */
+  --glass: rgba(42, 35, 30, 0.9);
+  /* 阴影 */
+  --shadow: rgba(0, 0, 0, 0.35);
+  /* 表单控件用深色 */
+  color-scheme: dark;
+}
+
+/* ===== 把颜色变量注册成 Tailwind 的颜色名（例如 bg-paper、text-ink） ===== */
+@theme inline {
+  --color-paper: var(--paper);
+  --color-card: var(--card);
+  --color-oat: var(--oat);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-on-accent: var(--on-accent);
+  --color-sage: var(--sage);
+  --color-sage-soft: var(--sage-soft);
+  --color-gold: var(--gold);
+  --color-locate: var(--locate);
+  --color-glass: var(--glass);
+  /* 衬线字体：用于西文地名和大标题 */
+  --font-serif: "Cormorant Garamond", "Songti SC", "STSong", serif;
+  /* 无衬线字体：正文（中文用 iPhone 自带的苹方） */
+  --font-sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+}
+
+/* ===== 全局基础样式 ===== */
+html,
+body,
+#root {
+  /* 占满整个屏幕高度 */
+  height: 100%;
+}
+
+body {
+  /* 去掉浏览器默认外边距 */
+  margin: 0;
+  /* 页面底色 */
+  background: var(--paper);
+  /* 文字颜色 */
+  color: var(--ink);
+  /* 正文字体 */
+  font-family: var(--font-sans);
+  /* 字体渲染更细腻 */
+  -webkit-font-smoothing: antialiased;
+  /* 禁止 iPhone 横屏时自动放大文字 */
+  -webkit-text-size-adjust: 100%;
+  /* 去掉点按时的灰色高亮 */
+  -webkit-tap-highlight-color: transparent;
+  /* 禁止整个页面的橡皮筋回弹（像原生 App） */
+  overscroll-behavior: none;
+}
+
+/* 按钮继承字体 */
+button {
+  font: inherit;
+  color: inherit;
+}
+
+/* ===== 地图控件和标记的样式 ===== */
+
+/* 地图右下角的版权信息：缩小、半透明、贴合风格 */
+.maplibregl-ctrl-attrib {
+  /* 半透明底 */
+  background: var(--glass) !important;
+  /* 小字 */
+  font-size: 10px;
+}
+/* 版权信息放在左下角，并抬高到底部卡片上方（--sheet-h 由页面设置，默认 20px） */
+.maplibregl-ctrl-bottom-left {
+  bottom: var(--sheet-h, 20px);
+}
+/* 版权信息里的链接颜色 */
+.maplibregl-ctrl-attrib a {
+  color: var(--muted) !important;
+}
+
+/* 城市标记：圆点 + 名字 */
+.city-marker {
+  /* 横向排列 */
+  display: flex;
+  /* 垂直居中 */
+  align-items: center;
+  /* 圆点和文字的间距 */
+  gap: 6px;
+  /* 手指形状 */
+  cursor: pointer;
+  /* 放大缩小时淡入淡出 */
+  transition: opacity 0.3s;
+}
+/* 城市标记的小圆点 */
+.city-marker .dot {
+  /* 尺寸 */
+  width: 14px;
+  height: 14px;
+  /* 圆形 */
+  border-radius: 50%;
+  /* 白底 */
+  background: var(--card);
+  /* 酒红描边 */
+  border: 2px solid var(--accent);
+  /* 轻阴影 */
+  box-shadow: 0 1px 4px var(--shadow);
+}
+/* 家（格罗宁根）的圆点：实心 */
+.city-marker.home .dot {
+  background: var(--accent);
+}
+/* 城市名标签 */
+.city-marker .label {
+  /* 半透明卡片底 */
+  background: var(--glass);
+  /* 文字颜色 */
+  color: var(--ink);
+  /* 衬线字体 */
+  font-family: var(--font-serif);
+  /* 字号 */
+  font-size: 16px;
+  /* 字重 */
+  font-weight: 600;
+  /* 内边距 */
+  padding: 2px 9px 3px;
+  /* 胶囊形 */
+  border-radius: 999px;
+  /* 细描边 */
+  border: 1px solid var(--line);
+  /* 不换行 */
+  white-space: nowrap;
+}
+/* 放大到街道级别时隐藏城市标记 */
+.city-marker.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* 景点标记（金色） */
+.poi-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  cursor: pointer;
+}
+/* 景点名字 */
+.poi-marker .label {
+  background: var(--glass);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--gold);
+  white-space: nowrap;
+}
+/* 景点下面的小钻石形状 */
+.poi-marker .pin {
+  width: 10px;
+  height: 10px;
+  background: var(--gold);
+  transform: rotate(45deg);
+  border: 2px solid var(--card);
+}
+
+/* 当天路线上的编号标记 */
+.stop-marker {
+  /* 圆形编号 */
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  /* 酒红底 */
+  background: var(--accent);
+  /* 白字 */
+  color: var(--on-accent);
+  /* 字号字重 */
+  font-size: 13px;
+  font-weight: 700;
+  /* 居中 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* 白色外圈，和地图分开 */
+  border: 2px solid var(--card);
+  /* 阴影 */
+  box-shadow: 0 2px 6px var(--shadow);
+  cursor: pointer;
+}
+/* 起点用深色 */
+.stop-wrap.is-start .stop-marker {
+  background: var(--ink);
+  color: var(--paper);
+}
+/* 编号 + 地名的外层 */
+.stop-wrap {
+  /* 横向排列 */
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  /* 去掉按钮默认样式 */
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+/* 编号右边的地名 */
+.stop-label {
+  /* 半透明卡片底 */
+  background: var(--glass);
+  color: var(--ink);
+  /* 小字 */
+  font-size: 11px;
+  font-weight: 600;
+  /* 内边距和圆角 */
+  padding: 2px 7px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  /* 不换行，太长就省略 */
+  white-space: nowrap;
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 我的位置：蓝点 */
+.me-marker {
+  /* 蓝点大小 */
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--locate);
+  /* 白色外圈 */
+  border: 3px solid #FFFFFF;
+  /* 阴影 */
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.3);
+  /* 相对定位，给下面的光圈用 */
+  position: relative;
+}
+/* 蓝点外面一圈慢慢扩散的光圈 */
+.me-marker::after {
+  content: "";
+  position: absolute;
+  inset: -12px;
+  border-radius: 50%;
+  background: var(--locate);
+  opacity: 0.25;
+  animation: me-pulse 2.4s ease-out infinite;
+}
+/* 光圈动画：从小到大、从实到虚 */
+@keyframes me-pulse {
+  0% {
+    transform: scale(0.4);
+    opacity: 0.35;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+/* 隐藏横向滚动条（城市卡片横滑时） */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* 用户在系统里开了“减少动态效果”时，关掉动画 */
+@media (prefers-reduced-motion: reduce) {
+  .me-marker::after {
+    animation: none;
+  }
+}

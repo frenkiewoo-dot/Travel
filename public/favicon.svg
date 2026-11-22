@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- 奶油色圆角底 -->
+  <rect width="512" height="512" rx="112" fill="#F6F1E9"/>
+  <!-- 细线雪花（酒红色） -->
+  <g fill="none" stroke="#7A3434" stroke-width="14" stroke-linecap="round">
+    <path d="M256 120v272M138 188l236 136M138 324l236-136"/>
+    <path d="M224 140l32 24 32-24M224 372l32-24 32 24"/>
+    <path d="M150 226l38-6-14-36M362 286l-38 6 14 36M150 286l38 6-14 36M362 226l-38-6 14-36"/>
+  </g>
+  <!-- 中心小圆点 -->
+  <circle cx="256" cy="256" r="14" fill="#7A3434"/>
+</svg>
