@@ -22,7 +22,7 @@ import { pinMarker, useMeMarker } from '../map/markers'
 // 引入步行路线绘制
 import { drawWalkRoute } from '../map/walkRoute'
 // 引入图层工具
-import { collection, ensureLayer, setGeoJSON } from '../map/layers'
+import { collection, ensureLayer, nearestStreetName, setGeoJSON } from '../map/layers'
 // 引入颜色变量
 import { cssVar } from '../map/tripRoute'
 // 引入定位
@@ -110,6 +110,10 @@ export default function NavPage() {
   const [stepsOpen, setStepsOpen] = useState(false)
   // 顶部小提示
   const [toast, setToast] = useState<string | null>(null)
+  // 路线这一段没有街名时，从地图数据里找到的附近街道名
+  const [nearbyStreet, setNearbyStreet] = useState<string | null>(null)
+  // 上次查附近街道名的时间（最多 2 秒查一次）
+  const lastStreetLookupRef = useRef(0)
 
   // 底部卡片（测量高度，让版权信息待在卡片上方）
   const sheetRef = useSheetHeight<HTMLElement>()
@@ -359,6 +363,23 @@ export default function NavPage() {
     }
   }, [pos, route, phase])
 
+  // ----- 当前这一段没有街名时，查附近的街道名 -----
+  useEffect(() => {
+    // 没在导航
+    if (!map || !progress || !route) return
+    // 这一段有名字就不用查
+    if (route.steps[progress.stepIndex]?.name) {
+      setNearbyStreet(null)
+      return
+    }
+    // 2 秒内查过就先不查
+    if (Date.now() - lastStreetLookupRef.current < 2000) return
+    // 记录时间
+    lastStreetLookupRef.current = Date.now()
+    // 查附近 30 米内最近的街道
+    setNearbyStreet(nearestStreetName(map, progress.snapped))
+  }, [map, progress, route])
+
   // ----- 地图跟随 -----
   useEffect(() => {
     // 没在导航或不跟随
@@ -591,7 +612,10 @@ export default function NavPage() {
         <section ref={sheetRef} className="absolute inset-x-0 bottom-0 rounded-t-[26px] border-t border-line bg-card px-5 pt-4 pb-[max(env(safe-area-inset-bottom),16px)] shadow-[0_-8px_24px_var(--shadow)]">
           {/* 当前街道 */}
           <div className="text-[12px] text-muted">你在</div>
-          <div className="truncate font-serif text-[24px] leading-tight font-medium">{curStep.name || '无名小路'}</div>
+          <div className="truncate font-serif text-[24px] leading-tight font-medium">
+            {/* 有街名就显示街名；没有就显示附近的街道；都没有就是步行小路 */}
+            {curStep.name || (nearbyStreet ? `${nearbyStreet} 附近` : '步行小路')}
+          </div>
           {/* 到下一个地点 */}
           <div className="mt-1 text-[13px] text-muted">
             到 <b className="font-semibold text-ink">{pinName(targetIdx)}</b>：{formatDuration(progress.toLegEnd / WALK_SPEED)} · {formatDistance(progress.toLegEnd)}

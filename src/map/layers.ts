@@ -7,7 +7,7 @@ import type { GeoJSONSource, LayerSpecification, Map as MLMap } from 'maplibre-g
 // 引入 GeoJSON 类型
 import type { Feature, FeatureCollection, Geometry } from 'geojson'
 // 引入坐标类型
-import { distanceMeters, type LngLat } from '../lib/geo'
+import { distanceMeters, projectToSegment, type LngLat } from '../lib/geo'
 // 引入 3D 建筑图层名和数据源名
 import { VECTOR_SOURCE } from './mapStyle'
 
@@ -134,4 +134,41 @@ function pointInRing(p: LngLat, ring: LngLat[]): boolean {
   }
   // 穿过奇数次就在里面
   return inside
+}
+
+// 找到某个位置附近（radius 米内）最近的街道名；找不到返回 null
+// 用于导航时路线这一段没有名字（例如广场上的人行道）的情况
+export function nearestStreetName(map: MLMap, p: LngLat, radius = 30): string | null {
+  // 矢量数据源不存在（例如离线样式）
+  if (!map.getSource(VECTOR_SOURCE)) return null
+  // 取出已加载的街道名数据
+  const feats = map.querySourceFeatures(VECTOR_SOURCE, { sourceLayer: 'transportation_name' })
+  // 最近的距离
+  let best = radius
+  // 最近的名字
+  let name: string | null = null
+  // 逐条街道检查
+  for (const f of feats) {
+    // 街道名
+    const n = f.properties?.name
+    // 没名字就跳过
+    if (!n) continue
+    // 取出所有线段（单条线也统一成数组）
+    const lines = f.geometry.type === 'LineString' ? [f.geometry.coordinates] : f.geometry.type === 'MultiLineString' ? f.geometry.coordinates : []
+    // 逐条线
+    for (const line of lines) {
+      // 逐段
+      for (let i = 1; i < line.length; i++) {
+        // 到这一段的距离
+        const d = projectToSegment(p, line[i - 1] as LngLat, line[i] as LngLat).dist
+        // 更近就记下
+        if (d < best) {
+          best = d
+          name = String(n)
+        }
+      }
+    }
+  }
+  // 返回
+  return name
 }
