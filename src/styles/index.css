@@ -359,6 +359,61 @@ input[type="search"]::-webkit-search-decoration {
   color: var(--paper);
 }
 
+/* 城市地图上的地点标记 */
+.place-marker {
+  /* 横向：图标 + 名字 */
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  /* 去掉按钮默认样式 */
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+/* 图标底座：景点是金色圆圈 */
+.place-marker .ico {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--card);
+  border: 2px solid var(--gold);
+  color: var(--gold);
+  box-shadow: 0 2px 6px var(--shadow);
+}
+/* 酒店：深色圆角方块 */
+.place-marker.hotel .ico {
+  border-radius: 9px;
+  border-color: var(--ink);
+  color: var(--ink);
+}
+/* 已选定 / 已预订：变大、酒红色 */
+.place-marker.is-chosen .ico {
+  width: 36px;
+  height: 36px;
+  background: var(--accent);
+  border-color: var(--card);
+  color: var(--on-accent);
+}
+/* 名字：默认不显示，已选定的才显示 */
+.place-marker .label {
+  display: none;
+  background: var(--glass);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  white-space: nowrap;
+}
+.place-marker.is-chosen .label {
+  display: inline;
+}
+
 /* 地图容器：长按时不要弹出 iPhone 的放大镜和菜单 */
 .maplibregl-canvas-container {
   -webkit-touch-callout: none;

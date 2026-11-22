@@ -167,3 +167,36 @@ export function pinMarker(
   // 返回
   return marker
 }
+
+// 床的图标（酒店）
+const BED_PATH = 'M3 18V7M3 14h18v4M21 14v-2a3 3 0 00-3-3h-7v5M6.5 11.5a1.5 1.5 0 100-.01'
+// 星星图标（景点）
+const STAR_PATH = 'M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8L3.5 9.7l5.9-.9L12 3.5z'
+
+// 创建城市地图上的地点标记：酒店是圆角方块 + 床，景点是金色圆圈 + 星星
+// chosen = 已选定或已预订：变大、变成酒红色，并显示名字
+export function placeMarker(name: string, isHotel: boolean, chosen: boolean, onClick?: () => void): maplibregl.Marker {
+  // 外层元素
+  const el = document.createElement('button')
+  // 样式类
+  el.className = `place-marker ${isHotel ? 'hotel' : 'attraction'}${chosen ? ' is-chosen' : ''}`
+  // 读屏文字
+  el.setAttribute('aria-label', `${isHotel ? '住宿' : '地点'}：${name}`)
+  // 图标
+  const ico = document.createElement('span')
+  ico.className = 'ico'
+  ico.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${isHotel ? BED_PATH : STAR_PATH}"/></svg>`
+  // 名字
+  const label = document.createElement('span')
+  label.className = 'label'
+  label.textContent = name
+  // 放进外层
+  el.append(ico, label)
+  // 点击
+  el.addEventListener('click', (e) => {
+    e.stopPropagation()
+    onClick?.()
+  })
+  // 锚点：图标中心对准坐标（名字在右边）
+  return new maplibregl.Marker({ element: el, anchor: 'left', offset: [chosen ? -18 : -15, 0] })
+}
