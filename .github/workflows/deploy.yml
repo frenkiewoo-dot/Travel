@@ -1,0 +1,66 @@
+# ============================================================
+# 自动部署：代码推送到 GitHub 后，自动打包，并发布到 gh-pages 分支
+# GitHub Pages 从 gh-pages 分支读取网页，网址：https://frenkiewoo-dot.github.io/Travel/
+# ============================================================
+
+# 工作流名字（在仓库的 Actions 页面显示）
+name: 部署到 GitHub Pages
+
+# 什么时候运行
+on:
+  # 推送到 main 分支或 claude/ 开头的开发分支时
+  push:
+    branches:
+      - main
+      - 'claude/**'
+  # 也可以在 Actions 页面手动点按钮运行
+  workflow_dispatch:
+
+# 权限：需要往 gh-pages 分支写入打包结果
+permissions:
+  contents: write
+
+# 同一时间只跑一个部署，新的会取消旧的
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+# 具体任务
+jobs:
+  deploy:
+    # 在 GitHub 提供的 Ubuntu 机器上运行
+    runs-on: ubuntu-latest
+    steps:
+      # 第 1 步：下载代码
+      - name: 下载代码
+        uses: actions/checkout@v4
+
+      # 第 2 步：安装 Node.js 22，并缓存依赖包加快速度
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # 第 3 步：按 package-lock.json 安装依赖
+      - name: 安装依赖
+        run: npm ci
+
+      # 第 4 步：打包（类型检查 + 生成 dist 文件夹）
+      - name: 打包
+        run: npm run build
+
+      # 第 5 步：把 dist 文件夹发布到 gh-pages 分支
+      - name: 发布
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          # 用 GitHub 自动提供的令牌
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          # 要发布的文件夹
+          publish_dir: ./dist
+          # 发布到哪个分支
+          publish_branch: gh-pages
+          # 只保留最新一次的文件，不累积历史
+          force_orphan: true
+          # 提交信息
+          commit_message: 部署
