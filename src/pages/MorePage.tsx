@@ -4,6 +4,8 @@
 
 // 引入 React 钩子
 import { useEffect, useState } from 'react'
+// 引入路由链接
+import { Link } from 'react-router-dom'
 // 引入主题工具
 import { setThemePref, useThemePref, type ThemePref } from '../lib/theme'
 // 引入图标
@@ -13,7 +15,7 @@ import { Icon } from '../components/Icon'
 const PLAN: { step: number; title: string; done: boolean }[] = [
   { step: 1, title: '地图首页、今日旅程、未来旅程', done: true },
   { step: 2, title: '地图：搜索、图钉、路线、App 内逐路口导航', done: true },
-  { step: 3, title: '行程编辑、城市详情（酒店 / 景点）', done: false },
+  { step: 3, title: '行程编辑、城市详情（酒店 / 景点）', done: true },
   { step: 4, title: '日程安排、城际与市内交通', done: false },
   { step: 5, title: '票夹（车票离线查看、全屏二维码）', done: false },
   { step: 6, title: '预算、常用链接、导出 / 导入备份', done: false },
@@ -48,8 +50,20 @@ export default function MorePage() {
       {/* 标题 */}
       <h1 className="mt-1 text-[28px] font-semibold">更多</h1>
 
+      {/* 编辑行程入口 */}
+      <Link to="/trip" className="mt-5 flex items-center justify-between rounded-2xl border border-line bg-card p-4">
+        <span className="flex items-center gap-2 text-[15px] font-semibold">
+          <Icon name="edit" size={17} />
+          编辑行程
+        </span>
+        <span className="flex items-center gap-1 text-[12px] text-muted">
+          日期 · 城市 · 交通
+          <Icon name="chevronRight" size={15} />
+        </span>
+      </Link>
+
       {/* 外观 */}
-      <section className="mt-5 rounded-2xl border border-line bg-card p-4">
+      <section className="mt-3 rounded-2xl border border-line bg-card p-4">
         <h2 className="flex items-center gap-2 text-[15px] font-semibold">
           <Icon name="moon" size={17} />
           外观

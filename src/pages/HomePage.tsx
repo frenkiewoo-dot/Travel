@@ -319,6 +319,11 @@ export default function HomePage() {
                 全览
               </button>
             </div>
+            {/* 城市详情入口 */}
+            <Link to={`/city/${focused.id}`} className="flex h-11 items-center justify-center gap-1.5 rounded-xl bg-ink text-[14px] text-paper">
+              酒店 · 景点 · 日程
+              <Icon name="chevronRight" size={15} />
+            </Link>
             {/* 展开时显示景点列表 */}
             {sheetOpen && (
               <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 pb-1">
@@ -332,20 +337,25 @@ export default function HomePage() {
                       {p.name}
                     </button>
                   ))}
-                {/* 城市详情入口（第 3 步建设） */}
-                <span className="flex h-10 shrink-0 items-center rounded-full border border-dashed border-line-strong px-3.5 text-[12px] text-muted">城市详情 · 第 3 步建设</span>
               </div>
             )}
           </div>
         ) : (
           // 全览时
           <div className="flex flex-col gap-3">
-            {/* 旅行名和日期（上下两行，避免名字被截断） */}
-            <div>
-              {/* 旅行名 */}
-              <h1 className="font-serif text-[26px] leading-tight font-medium">{data.trip.name}</h1>
-              {/* 日期范围或待定提示 */}
-              <div className="mt-0.5 text-[12px] text-muted">{dateRange(itin.days, data.trip.startDateHint)}</div>
+            {/* 旅行名和日期（上下两行，避免名字被截断） + 编辑行程 */}
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                {/* 旅行名 */}
+                <h1 className="font-serif text-[26px] leading-tight font-medium">{data.trip.name}</h1>
+                {/* 日期范围或待定提示 */}
+                <div className="mt-0.5 text-[12px] text-muted">{dateRange(itin.days, data.trip.startDateHint)}</div>
+              </div>
+              {/* 编辑行程 */}
+              <Link to="/trip" className="flex h-10 shrink-0 items-center gap-1 rounded-full border border-line-strong px-3.5 text-[13px]">
+                <Icon name="edit" size={14} />
+                编辑
+              </Link>
             </div>
             {/* 展开时显示城市卡片 */}
             {sheetOpen && (
@@ -354,6 +364,8 @@ export default function HomePage() {
                 {spans.map(({ stop, arriveDay, departDay }) => {
                   // 这个城市的酒店有没有已预订的
                   const booked = data.places.some((p) => p.stopId === stop.id && p.category === 'hotel' && p.status === 'booked')
+                  // 有没有已选定的
+                  const selected = data.places.some((p) => p.stopId === stop.id && p.category === 'hotel' && p.status === 'selected')
                   // 卡片
                   return (
                     <button
@@ -371,8 +383,8 @@ export default function HomePage() {
                         {spanText(arriveDay, departDay, itin.days)} · {stop.nights}晚
                       </span>
                       {/* 住宿状态 */}
-                      <span className={`mt-0.5 rounded-full px-2 py-0.5 text-[11px] ${booked ? 'bg-sage-soft text-sage' : 'bg-accent-soft text-accent'}`}>
-                        {booked ? '住宿已订' : '住宿未订'}
+                      <span className={`mt-0.5 rounded-full px-2 py-0.5 text-[11px] ${booked ? 'bg-sage-soft text-sage' : selected ? 'bg-oat text-ink' : 'bg-accent-soft text-accent'}`}>
+                        {booked ? '住宿已订' : selected ? '住宿已选定' : '住宿未订'}
                       </span>
                     </button>
                   )

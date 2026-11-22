@@ -16,6 +16,8 @@ import MorePage from './pages/MorePage'
 import ComingSoon from './pages/ComingSoon'
 import MapPage from './pages/MapPage'
 import NavPage from './pages/NavPage'
+import CityPage from './pages/CityPage'
+import TripEditPage from './pages/TripEditPage'
 
 // App 组件
 export default function App() {
@@ -47,6 +49,10 @@ function Shell() {
             <Route path="/today" element={<DayPage today />} />
             {/* 某一天 */}
             <Route path="/day/:n" element={<DayPage />} />
+            {/* 城市详情 */}
+            <Route path="/city/:id" element={<CityPage />} />
+            {/* 编辑行程 */}
+            <Route path="/trip" element={<TripEditPage />} />
             {/* 未来旅程 */}
             <Route path="/upcoming" element={<UpcomingPage />} />
             {/* 地图：搜索、图钉、路线 */}
