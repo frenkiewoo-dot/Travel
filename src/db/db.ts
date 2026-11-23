@@ -6,7 +6,7 @@
 // 引入 Dexie 和它的表类型
 import Dexie, { type EntityTable } from 'dexie'
 // 引入数据结构定义
-import type { DayPlan, Place, RouteCache, Segment, Setting, Stop, Trip } from './schema'
+import type { DayPlan, Place, RouteCache, Segment, Setting, Stop, Ticket, TicketFile, Trip } from './schema'
 // 引入初始数据
 import { buildSeed } from './seed'
 
@@ -26,6 +26,10 @@ type TravelDB = Dexie & {
   routeCache: EntityTable<RouteCache, 'key'>
   // 设置表（主键 key）
   settings: EntityTable<Setting, 'key'>
+  // 车票表（第 2 版加入）
+  tickets: EntityTable<Ticket, 'id'>
+  // 车票文件表（第 2 版加入，存图片和 PDF）
+  ticketFiles: EntityTable<TicketFile, 'id'>
 }
 
 // 创建数据库，名字叫 noel-travel
@@ -50,8 +54,24 @@ db.version(1).stores({
   settings: 'key',
 })
 
-// 以后升级数据结构的写法示例（现在不用）：
-// db.version(2).stores({ ...新的表结构 }).upgrade(async (tx) => { ...把旧数据改成新格式 })
+// 版本 2：加入票夹的两张表。只是新增表，旧数据不用改，所以不需要 upgrade 函数
+// （Dexie 规定：新版本里要把所有表都写上，没变的表照抄）
+db.version(2).stores({
+  trips: 'id, updatedAt',
+  stops: 'id, tripId, [tripId+order]',
+  segments: 'id, tripId',
+  places: 'id, tripId, stopId, category',
+  dayPlans: 'id, tripId, [tripId+dayIndex]',
+  routeCache: 'key, savedAt',
+  settings: 'key',
+  // 车票：按旅行、按交通段查
+  tickets: 'id, tripId, segmentId, createdAt',
+  // 车票文件：按车票查
+  ticketFiles: 'id, ticketId',
+})
+
+// 以后如果要改已有数据的格式，写法示例：
+// db.version(3).stores({ ...所有表 }).upgrade(async (tx) => { ...把旧数据改成新格式 })
 
 // 当前查看的旅行 ID 存在设置表里，用这个名字
 export const ACTIVE_TRIP_KEY = 'activeTripId'

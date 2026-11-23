@@ -69,10 +69,20 @@ export default defineConfig({
       workbox: {
         // App 自己的文件全部预缓存（断网也能打开）
         globPatterns: ['**/*.{js,mjs,css,html,svg,png,woff2}'],
+        // PDF 处理库很大（约 1.8MB），只有上传 PDF 车票时才用，不放进首次安装；第一次用到时再缓存（见下面的规则）
+        globIgnores: ['**/pdf.worker*', '**/pdf-*.js'],
         // 单个文件最大 5MB（地图引擎比较大，默认 2MB 不够）
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         // 运行时缓存：App 运行中请求到的外部资源
         runtimeCaching: [
+          {
+            // PDF 处理库：第一次用到时下载并缓存，之后断网也能用
+            urlPattern: ({ url, sameOrigin }) => sameOrigin && /\/assets\/pdf[.-]/.test(url.pathname),
+            // 优先用缓存
+            handler: 'CacheFirst',
+            // 缓存设置
+            options: { cacheName: 'pdf-lib', cacheableResponse: { statuses: [0, 200] } },
+          },
           {
             // 地图瓦片（.pbf 矢量数据）、字体、图标：看过的区域缓存下来，断网时还能看
             urlPattern: ({ url }) =>

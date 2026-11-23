@@ -6,7 +6,8 @@
 // ============================================================
 
 // 当前数据结构的版本号（导出备份时也会写进文件，导入时用来判断要不要迁移）
-export const SCHEMA_VERSION = 1
+// 版本历史：1 = 初版；2 = 加入票夹（tickets、ticketFiles 两张表）
+export const SCHEMA_VERSION = 2
 
 // 所有记录的 ID 都是字符串
 export type ID = string
@@ -234,6 +235,55 @@ export interface DayPlan {
   items: DayPlanItem[]
   // 是否是示例数据（示例会显示“示例”标签）
   isSample?: boolean
+}
+
+// ---------- 票夹 ----------
+
+// 一张车票（或门票、登机牌）
+export interface Ticket {
+  // 唯一 ID
+  id: ID
+  // 属于哪次旅行
+  tripId: ID
+  // 关联的城际交通段（门票等可以不关联）
+  segmentId?: ID
+  // 标题，例如 “Groningen → Berlin”
+  title: string
+  // 类型（火车 / 大巴 / 飞机 / 其他）
+  mode: TransportMode
+  // 运营商，例如 “FlixBus”
+  provider?: string
+  // 出发时间，格式 'YYYY-MM-DDTHH:mm'（当地时间）
+  departAt?: string
+  // 车次 / 航班号
+  number?: string
+  // 座位
+  seat?: string
+  // 订单号 / 预订码
+  orderNo?: string
+  // 备注
+  note?: string
+  // 创建时间
+  createdAt: number
+}
+
+// 车票的文件（图片，或 PDF 原件和它转成的图片）
+export interface TicketFile {
+  // 唯一 ID
+  id: ID
+  // 属于哪张车票
+  ticketId: ID
+  // 文件名
+  name: string
+  // 文件类型，例如 image/png、application/pdf
+  mime: string
+  // 文件内容
+  blob: Blob
+  // 如果是 PDF 转出来的图片：原 PDF 文件的 ID 和第几页
+  pdfId?: ID
+  page?: number
+  // 顺序
+  order: number
 }
 
 // ---------- 路线缓存 ----------
