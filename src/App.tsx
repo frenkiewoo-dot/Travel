@@ -19,6 +19,8 @@ import NavPage from './pages/NavPage'
 import CityPage from './pages/CityPage'
 import TripEditPage from './pages/TripEditPage'
 import SegmentPage from './pages/SegmentPage'
+import TicketsPage from './pages/TicketsPage'
+import TicketPage from './pages/TicketPage'
 
 // App 组件
 export default function App() {
@@ -67,11 +69,10 @@ function Shell() {
               path="/budget"
               element={<ComingSoon title="预算" step={6} items={['分类记账：交通 / 住宿 / 餐饮 / 门票 / 购物 / 其他', '计划 vs 实际', '欧元和丹麦克朗，汇率可手动设置', '总额不固定，随时可以改']} />}
             />
-            {/* 票夹（第 5 步） */}
-            <Route
-              path="/tickets"
-              element={<ComingSoon title="票夹" step={5} items={['上传车票图片 / PDF / 截图', '填写订单号、座位、时间，关联到行程段', '断网也能看', '全屏显示二维码，方便检票']} />}
-            />
+            {/* 票夹 */}
+            <Route path="/tickets" element={<TicketsPage />} />
+            {/* 一张车票 */}
+            <Route path="/ticket/:id" element={<TicketPage />} />
             {/* 更多 */}
             <Route path="/more" element={<MorePage />} />
             {/* 其他未知网址：回首页 */}

@@ -17,7 +17,7 @@ const PLAN: { step: number; title: string; done: boolean }[] = [
   { step: 2, title: '地图：搜索、图钉、路线、App 内逐路口导航', done: true },
   { step: 3, title: '行程编辑、城市详情（酒店 / 景点）', done: true },
   { step: 4, title: '日程安排、城际与市内交通', done: true },
-  { step: 5, title: '票夹（车票离线查看、全屏二维码）', done: false },
+  { step: 5, title: '票夹（车票离线查看、全屏二维码）', done: true },
   { step: 6, title: '预算、常用链接、导出 / 导入备份', done: false },
   { step: 7, title: '调研填充真实数据、圣诞节期间提醒', done: false },
 ]

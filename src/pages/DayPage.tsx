@@ -371,7 +371,7 @@ export default function DayPage({ today = false }: { today?: boolean }) {
 
           {/* 当天的城际交通（点进去看可选方式） */}
           {day.segments.map((seg) => (
-            <SegmentCard key={seg.id} seg={seg} stops={data.stops} />
+            <SegmentCard key={seg.id} seg={seg} stops={data.stops} hasTicket={data.tickets.some((t) => t.segmentId === seg.id)} />
           ))}
 
           {/* 示例说明 */}
@@ -550,7 +550,7 @@ export default function DayPage({ today = false }: { today?: boolean }) {
 }
 
 // 城际交通卡片
-function SegmentCard({ seg, stops }: { seg: Segment; stops: Stop[] }) {
+function SegmentCard({ seg, stops, hasTicket }: { seg: Segment; stops: Stop[]; hasTicket: boolean }) {
   // 出发地
   const from = stops.find((s) => s.id === seg.fromStopId)
   // 目的地
@@ -576,6 +576,13 @@ function SegmentCard({ seg, stops }: { seg: Segment; stops: Stop[] }) {
           {seg.timeOfDay && ` · ${seg.timeOfDay}`}
           {!chosen && seg.options?.length ? ` · ${seg.options.length} 种可选方式` : ''}
         </div>
+        {/* 已存车票 */}
+        {hasTicket && (
+          <div className="mt-0.5 flex items-center gap-1 text-[12px] text-sage">
+            <Icon name="ticket" size={13} />
+            车票已存在票夹
+          </div>
+        )}
       </div>
       {/* 是否已订 */}
       <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] ${seg.booked ? 'bg-sage-soft text-sage' : 'bg-accent-soft text-accent'}`}>

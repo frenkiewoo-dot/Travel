@@ -3,6 +3,7 @@
 //   - 可选方式：火车 / 大巴 / 飞机，大致时长、价格、预订链接
 //   - 选定一种方式，标记“已订”，写时间和备注
 //   - 也可以自己添加方式
+//   - 这一段的车票（票夹）
 // ============================================================
 
 // 引入 React 钩子
@@ -22,6 +23,8 @@ import { googleMapsDirections } from '../lib/gmaps'
 // 引入组件
 import { Icon, type IconName } from '../components/Icon'
 import { Field, INPUT, Segmented, Sheet, TEXTAREA } from '../components/Sheet'
+import { TicketCard } from '../components/TicketCard'
+import { TicketForm } from '../components/TicketForm'
 // 引入加载画面
 import { Loading } from './HomePage'
 
@@ -42,6 +45,8 @@ export default function SegmentPage() {
   const itin = useItinerary(data)
   // 是否显示“自己添加方式”表单
   const [adding, setAdding] = useState(false)
+  // 是否显示“添加车票”表单
+  const [addingTicket, setAddingTicket] = useState(false)
 
   // 加载中
   if (!data || !itin) return <Loading />
@@ -99,6 +104,24 @@ export default function SegmentPage() {
           ]}
           onChange={(v) => updateSegment(seg.id, { booked: v === 'yes' })}
         />
+      </div>
+
+      {/* 车票 */}
+      <h2 className="mt-6 flex items-center justify-between text-[15px] font-semibold">
+        车票
+        <button onClick={() => setAddingTicket(true)} className="flex h-9 items-center gap-1 rounded-full border border-line-strong px-3 text-[12px] font-normal">
+          <Icon name="plus" size={14} />
+          添加车票
+        </button>
+      </h2>
+      <div className="mt-2 flex flex-col gap-3">
+        {data.tickets
+          .filter((t) => t.segmentId === seg.id)
+          .map((t) => (
+            <TicketCard key={t.id} ticket={t} fallbackDate={day ? dayLabel(day) : undefined} />
+          ))}
+        {/* 没有车票 */}
+        {!data.tickets.some((t) => t.segmentId === seg.id) && <p className="text-[12px] text-muted">订好票后把车票图片或 PDF 存在这里，断网也能打开。</p>}
       </div>
 
       {/* 可选方式 */}
@@ -162,6 +185,18 @@ export default function SegmentPage() {
           <textarea defaultValue={seg.note ?? ''} onBlur={(e) => updateSegment(seg.id, { note: e.target.value.trim() || undefined })} className={TEXTAREA} />
         </Field>
       </section>
+
+      {/* 添加车票的表单 */}
+      {addingTicket && (
+        <TicketForm
+          tripId={data.trip.id}
+          initial={null}
+          segments={data.segments}
+          stops={data.stops}
+          defaultSegmentId={seg.id}
+          onClose={() => setAddingTicket(false)}
+        />
+      )}
 
       {/* 自己添加方式的表单 */}
       {adding && <OptionForm onClose={() => setAdding(false)} onSave={(o) => addUserOption(seg.id, o).then(() => setAdding(false))} />}
