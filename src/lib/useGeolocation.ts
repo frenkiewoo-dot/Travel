@@ -61,7 +61,10 @@ export function useGeolocation(auto = true) {
         const msg =
           // 1 = 用户拒绝了定位权限
           err.code === 1
-            ? '没有定位权限。可在 iPhone「设置 → 隐私与安全性 → 定位服务 → Safari 网站」里改为“使用 App 期间”'
+            ? // iPhone / iPad 和电脑的设置位置不一样，分开提示
+              /iPhone|iPad|iPod/.test(navigator.userAgent)
+              ? '没有定位权限。可在 iPhone「设置 → 隐私与安全性 → 定位服务 → Safari 网站」里改为“使用 App 期间”'
+              : '没有定位权限。点浏览器地址栏左边的图标，把“位置”改成允许，再刷新页面'
             // 2 = 暂时定位不到（例如在室内）
             : err.code === 2
               ? '暂时定位不到，请到开阔的地方再试'

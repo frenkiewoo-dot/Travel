@@ -132,6 +132,33 @@ body {
   overscroll-behavior: none;
 }
 
+/* ===== 在电脑上打开：App 显示成屏幕中间一个手机宽度的窗口 =====
+   这个 App 是按手机屏幕设计的，电脑浏览器太宽会把页面拉得很散；
+   宽度 ≥ 640px（电脑、平板横屏）时，把 App 限制在 430px 宽（大号 iPhone 的宽度），方便在电脑上测试。
+   手机上（宽度 < 640px）这段完全不起作用。 */
+@media (min-width: 640px) {
+  body {
+    /* 窗口外面用燕麦色，和 App 区分开 */
+    background: var(--oat);
+  }
+
+  #root {
+    /* 最宽 430px，水平居中 */
+    max-width: 430px;
+    margin: 0 auto;
+    /* App 自己的底色 */
+    background: var(--paper);
+    /* 左右细边框 + 阴影，看起来像一部手机 */
+    border-left: 1px solid var(--line-strong);
+    border-right: 1px solid var(--line-strong);
+    box-shadow: 0 0 40px var(--shadow);
+    /* 超出窗口的内容不显示 */
+    overflow: hidden;
+    /* 让弹出面板、全屏车票等“铺满屏幕”的元素只铺满这个窗口，而不是整个电脑屏幕 */
+    transform: translateZ(0);
+  }
+}
+
 /* 按钮继承字体和颜色（放在 base 层，这样 Tailwind 的 text-xxx 颜色类可以覆盖它） */
 @layer base {
   button {

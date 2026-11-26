@@ -423,12 +423,14 @@ export default function MapPage() {
     const sy = e.clientY
     // 是否真的拖动了
     let moved = false
+    // App 外框的位置（电脑上 App 显示在屏幕中间的手机宽度框里，拖动中的图钉要减去外框的偏移；手机上偏移是 0）
+    const frame = document.getElementById('root')?.getBoundingClientRect()
     // 手指移动
     const onMove = (ev: PointerEvent) => {
       // 移动超过 6 像素才算拖动
       if (Math.hypot(ev.clientX - sx, ev.clientY - sy) > 6) moved = true
-      // 显示跟着手指的图钉
-      if (moved) setGhost({ x: ev.clientX, y: ev.clientY })
+      // 显示跟着手指的图钉（换算成外框里的坐标）
+      if (moved) setGhost({ x: ev.clientX - (frame?.left ?? 0), y: ev.clientY - (frame?.top ?? 0) })
     }
     // 手指抬起
     const onUp = (ev: PointerEvent) => {
