@@ -185,7 +185,7 @@ export default function SegmentPage() {
           <input defaultValue={seg.timeOfDay ?? ''} onBlur={(e) => updateSegment(seg.id, { timeOfDay: e.target.value.trim() || undefined })} placeholder="例如 上午，或 09:15 出发" className={INPUT} />
         </Field>
         {/* 备注 */}
-        <Field label="备注" hint="例如车次、座位、订单号（第 5 步的票夹可以存车票文件）">
+        <Field label="备注" hint="例如车次、座位、订单号（车票文件存在上面的「车票」里）">
           <textarea defaultValue={seg.note ?? ''} onBlur={(e) => updateSegment(seg.id, { note: e.target.value.trim() || undefined })} className={TEXTAREA} />
         </Field>
       </section>

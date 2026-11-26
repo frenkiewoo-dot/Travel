@@ -1,5 +1,5 @@
 // ============================================================
-// 更多：本次旅行、常用链接、备份与恢复、外观设置、数据存储状态、建设进度
+// 更多：使用说明、本次旅行、常用链接、备份与恢复、外观设置、数据存储状态、建设进度
 // ============================================================
 
 // 引入 React 钩子
@@ -21,7 +21,8 @@ const PLAN: { step: number; title: string; done: boolean }[] = [
   { step: 4, title: '日程安排、城际与市内交通', done: true },
   { step: 5, title: '票夹（车票离线查看、全屏二维码）', done: true },
   { step: 6, title: '预算、常用链接、导出 / 导入备份', done: true },
-  { step: 7, title: '调研填充真实数据、圣诞节期间提醒', done: false },
+  { step: 7, title: '推荐青旅和景点、圣诞期间开放情况', done: true },
+  { step: 8, title: '使用说明、电脑上测试、交付', done: true },
 ]
 
 // 主题选项
@@ -54,8 +55,20 @@ export default function MorePage() {
       {/* 标题 */}
       <h1 className="mt-1 text-[28px] font-semibold">更多</h1>
 
+      {/* 使用说明（放在最上面，第一次用先看这个） */}
+      <Link to="/guide" className="mt-5 flex items-center gap-3 rounded-2xl bg-ink p-4 text-paper">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-paper/15">
+          <Icon name="question" size={20} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[15px] font-semibold">使用说明</span>
+          <span className="block text-[12px] opacity-75">每个功能怎么用 · 都配了例子</span>
+        </span>
+        <Icon name="chevronRight" size={16} className="shrink-0 opacity-75" />
+      </Link>
+
       {/* 本次旅行入口 */}
-      <Link to="/trip" className="mt-5 flex items-center justify-between rounded-2xl border border-line bg-card p-4">
+      <Link to="/trip" className="mt-3 flex items-center justify-between rounded-2xl border border-line bg-card p-4">
         <span className="flex items-center gap-2 text-[15px] font-semibold">
           <Icon name="trip" size={17} />
           本次旅行
@@ -116,9 +129,9 @@ export default function MorePage() {
       <section className="mt-3 rounded-2xl border border-line bg-card p-4">
         <h2 className="text-[15px] font-semibold">数据存储</h2>
         <p className="mt-2 text-[13px] leading-relaxed text-muted">
-          所有数据只存在这台手机里，不会上传。
+          所有数据只存在这台设备的浏览器里，不会上传。
           {persisted === true && ' 已开启持久存储，系统不会自动清理。'}
-          {persisted === false && ' 建议把 App 添加到主屏幕使用，并定期在「备份与恢复」里导出备份。'}
+          {persisted === false && ' 建议定期在「备份与恢复」里导出备份。'}
         </p>
       </section>
 
