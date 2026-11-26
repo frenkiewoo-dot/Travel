@@ -32,6 +32,8 @@ interface Section {
   what: string[]
   // 怎么用（按步骤）
   steps: string[]
+  // 分阶段的步骤（只有「完整例子」用；有它时不显示上面两项）
+  phases?: Phase[]
   // 例子（一个具体的使用场景）
   example: string[]
   // 小提示（可选）
@@ -39,6 +41,82 @@ interface Section {
   // 「去试试」跳转的页面（可选）
   link?: { to: string; label: string }
 }
+
+// 「完整例子」的一个阶段
+interface Phase {
+  // 阶段名称
+  title: string
+  // 什么时候做
+  when: string
+  // 这个阶段的步骤（可以带一个跳转按钮）
+  steps: { text: string; link?: { to: string; label: string } }[]
+}
+
+// 完整例子：明年 4 月去意大利（米兰、佛罗伦萨、罗马），从一个想法到一本旅行手册和相册
+const ITALY: Phase[] = [
+  {
+    title: '有了想法',
+    when: '出发前 2–3 个月',
+    steps: [
+      {
+        text: '新建旅行：「更多 → 我的旅行」（或点首页左上角的卡片）→「新建旅行」→ 名称填「Italia」，副标题「Printemps 2027」，出发日期先选「待定」→「新建并添加目的地」。App 会自动切换到这次旅行；圣诞旅行和它的照片都还在「我的旅行」里。',
+        link: { to: '/trips', label: '我的旅行' },
+      },
+      { text: '加城市：「本次旅行」→「添加目的地」→ 搜索 Milano → 类型选「住宿城市」，住 3 晚 → 保存。再加 Firenze（3 晚）、Roma（4 晚）。顺序不对就用上移 / 下移。', link: { to: '/trip', label: '本次旅行' } },
+      { text: '加机场：「添加目的地」→ 搜索 Amsterdam Schiphol → 类型选「只是路过」，用上移放到 Groningen 后面；回程也加一个，放在 Roma 后面。两地之间会自动出现交通。' },
+      { text: '定日期：「本次旅行」最上面「基本信息」→ 出发日期选「已定」→ 选 2027 年 4 月 10 日。每个城市的日期、每一天的星期都会自动算好，改住几晚也会自动顺延。' },
+      { text: '定预算：底部「预算」→ 右上角「设置预算」，例如 €1,200；再点各个分类填计划（交通、住宿、餐饮…）。', link: { to: '/budget', label: '预算' } },
+    ],
+  },
+  {
+    title: '订机票、火车和住宿',
+    when: '出发前 1–2 个月',
+    steps: [
+      { text: '城市之间怎么走：在「本次旅行」里点 Milano → Firenze 之间的交通 →「Google Maps 查车次」看有哪些车；或者「自己添加方式」：运营商填 Trenitalia、时长「约 2 小时」、贴上订票链接。订好后点「选这个」，再把「是否已订票」切到「已订票」。' },
+      { text: '录入机票：Amsterdam → Milano 那段交通上点「机票截图」→ 选航班确认邮件的截图 → 填航空公司、航班号、起飞和到达时间 → 勾选「同时把这段交通标记为已订」。机票会出现在「票夹」，检票时可以全屏显示。' },
+      { text: '选住宿：在每个城市下面点「添加住宿」（或城市详情「酒店」→「自己添加」）→ 搜索青旅名字 → 先都当「候选」，在城市「地图」里比较位置 → 订好的那家改成「已预订」并上传订房截图 → 点「隐藏其余候选」。' },
+      {
+        text: '景点推荐，两种方式：① 自己找：城市详情「景点」→「自己添加」，或在「地图」里搜索（例如 Duomo di Milano、Galleria degli Uffizi、Colosseo）；② 找 Claude：把城市告诉 Claude，请它像圣诞行程一样调研门票、开放时间和节假日，写进推荐内容包。你下次打开 App，推荐会按位置自动出现在你的 Milano / Firenze / Roma 里，不会覆盖你自己加的。',
+      },
+    ],
+  },
+  {
+    title: '安排每一天',
+    when: '出发前 2 周',
+    steps: [
+      { text: '每天去哪：城市详情「日程」点某一天（或「今日旅程」→「后一天」切过去）→「从景点添加」选当天要去的地方 →「顺路排序」→ 填时间。每两站之间显示步行几分钟，远的还会显示坐哪路公交。' },
+      { text: '想去的小店：「地图」里搜索店名 → 放图钉 → 拖动调整位置 →「存到日程」→ 选那一天 →「追加到后面」。', link: { to: '/map', label: '地图' } },
+      { text: '市内交通：城市详情「交通」标签看机场怎么进城、车票种类；「我的笔记」记下打算买什么票。' },
+    ],
+  },
+  {
+    title: '出发前',
+    when: '出发前一两天',
+    steps: [
+      { text: '生成旅行手册：「本次旅行」→「生成旅行手册」：路线、机票和交通、住宿、每日安排、景点、相册都在一页。检查机票和住宿是不是都显示「已订」，再「打印 / 存成 PDF」发给家人。', link: { to: '/carnet', label: '旅行手册' } },
+      { text: '备份：「更多 → 备份与恢复 → 导出备份」，存到「文件」或发给自己。', link: { to: '/backup', label: '备份' } },
+      { text: '离线地图：在 Wi-Fi 下把每个城市住处附近、要去的景点附近放大看一遍，到了没网也能看。' },
+    ],
+  },
+  {
+    title: '旅途中',
+    when: '每天',
+    steps: [
+      { text: '早上打开「今日旅程」：今天去哪、几点、怎么走 →「App 内导航」逐路口带路，或「Google Maps」。', link: { to: '/today', label: '今日旅程' } },
+      { text: '上车 / 登机：「票夹」→ 点车票 →「全屏显示车票」。' },
+      { text: '花了钱：「预算」→「记一笔」，币种默认是当地货币（意大利是欧元）。' },
+    ],
+  },
+  {
+    title: '回来以后',
+    when: '旅行结束',
+    steps: [
+      { text: '上传照片：城市详情「相册」→「上传照片」→ 一次选这个城市拍的所有照片 →「自动整理」。带位置的照片会自动归到 Duomo、Uffizi 这些景点，其余按日期放进「Promenade（城市漫步）」，自动排成杂志一样的相册。' },
+      { text: '整理：「整理」把没归类的照片归到景点；看大图时点「设为封面」；每一章「写一句话」，像杂志引言。' },
+      { text: '以后回味：「城市」最下面「去过的城市」，或「我的旅行」里点回这次旅行，随时能看。', link: { to: '/cities', label: '城市' } },
+    ],
+  },
+]
 
 // 全部说明（按使用顺序排列）
 const SECTIONS: Section[] = [
@@ -68,6 +146,23 @@ const SECTIONS: Section[] = [
     ],
     tip: '电脑上整理好的数据想带到手机上：电脑「导出备份」→ 把文件发到手机 → 手机上「从备份恢复」（见「备份与恢复」一节）。',
   },
+  // ---------- 完整例子 ----------
+  {
+    id: 'example',
+    icon: 'sparkle',
+    title: '完整例子：明年 4 月去意大利',
+    summary: '米兰 → 佛罗伦萨 → 罗马，从一个想法到旅行手册和相册',
+    where: '整个 App。下面按时间分成 6 个阶段，每一步都写了点哪里',
+    what: [],
+    steps: [],
+    phases: ITALY,
+    example: [
+      '最后你会得到：一本「旅行手册」——一页看完整个行程：每段机票和火车（航班号、时间、已订）、每个城市住哪、每天几点去哪、每个城市值得去的景点和节假日提醒；',
+      '回来以后，每个城市还有一本按景点分章、自动排版的相册，在「城市」和「我的旅行」里随时能打开。',
+    ],
+    tip: '电脑上就可以把这个例子完整走一遍：建一个「Italia」旅行试试，试完在「我的旅行」里删掉就行，不影响圣诞旅行。',
+    link: { to: '/trips', label: '从「我的旅行」开始' },
+  },
   // ---------- 1. 首页 ----------
   {
     id: 'home',
@@ -77,7 +172,7 @@ const SECTIONS: Section[] = [
     where: '底部导航第一个「行程」',
     what: [
       '整屏真实地图：整条路线（火车 / 大巴是实线，飞机是点线）、每个城市、你的位置（蓝点）',
-      '左上角：还有几天出发 / 今天是旅途第几天',
+      '左上角：还有几天出发 / 今天是旅途第几天；点它打开「我的旅行」，可以切换或新建旅行',
       '右上角：「今日旅程」「未来旅程」两个按钮',
       '底部卡片：按顺序列出每个目的地（日期、住几晚、住宿状态），还有「本次旅行」入口',
       '右下角三个圆按钮：指南针（回到正北）、3D / 平面切换、回到我的位置',
@@ -164,6 +259,23 @@ const SECTIONS: Section[] = [
     tip: '航班号、订单号、住处这些个人信息只存在你自己的设备里，不会出现在代码仓库。',
     link: { to: '/trip', label: '去本次旅行' },
   },
+  // ---------- 我的旅行 ----------
+  {
+    id: 'trips',
+    icon: 'plane',
+    title: '我的旅行（多次旅行）',
+    summary: '新建、切换旅行；以前的旅行一直保留',
+    where: '「更多 → 我的旅行」；首页左上角的卡片；「本次旅行」右上角「切换 / 新建旅行」',
+    what: [
+      '列出所有旅行：封面用那次旅行的照片，显示日期、城市、照片张数，以及「当前 / 还有几天 / 旅行中 / 已结束 / 日期待定」',
+      '「当前旅行」决定首页、今日旅程、票夹、预算显示哪一次；城市页和相册可以打开任何一次旅行的城市',
+      '新建旅行：只要名称，日期可以待定；出发和回家的城市沿用当前旅行的',
+      '删除不需要的旅行（不能删当前旅行，要先切换）',
+    ],
+    steps: ['新建：「新建旅行」→ 填名称、副标题、出发日期、人数 →「新建并添加目的地」→ 自动切换过去并打开「本次旅行」', '切换：点一次旅行的卡片（或「切换到这次」）→ 回到首页', '删除：卡片右下角「删除」（会删掉这次旅行的全部数据和照片，建议先备份）'],
+    example: ['圣诞旅行回来后开始计划意大利：「我的旅行」→「新建旅行」→ Italia。之后想看哥本哈根的照片：「城市」最下面「去过的城市」点哥本哈根，或者在「我的旅行」里点回圣诞旅行。'],
+    link: { to: '/trips', label: '去我的旅行' },
+  },
   // ---------- 5. 城市 ----------
   {
     id: 'cities',
@@ -171,8 +283,12 @@ const SECTIONS: Section[] = [
     title: '城市',
     summary: '按国家列出所有城市',
     where: '底部导航「城市」',
-    what: ['本次旅行的城市，按国家分组，带日期和住宿状态（未订 / 已选定 / 已订）', '「以后想去」的城市（例如柏林），资料都保留着'],
-    steps: ['点任何一个城市，进入城市详情'],
+    what: [
+      '本次旅行的城市，按国家分组，带日期和住宿状态（未订 / 已选定 / 已订）',
+      '「以后想去」的城市（例如柏林），资料都保留着',
+      '有照片的城市左边显示相册封面小图；「去过的城市」列出以前旅行里拍过照片的城市',
+    ],
+    steps: ['点任何一个城市，进入城市详情（有照片的城市直接打开相册）'],
     example: ['想翻翻柏林的资料：「城市」最下面「以后想去」→ 点「柏林」→ 推荐青旅、圣诞市场、景点都还在，以后去的时候直接用。'],
     link: { to: '/cities', label: '去城市' },
   },
@@ -180,7 +296,7 @@ const SECTIONS: Section[] = [
   {
     id: 'city',
     icon: 'bed',
-    title: '城市详情：酒店 / 景点 / 日程 / 交通 / 地图',
+    title: '城市详情：酒店 / 景点 / 日程 / 交通 / 地图 / 相册',
     summary: '一个城市的全部资料',
     where: '「城市」里点一个城市；或首页城市卡片里「酒店 · 景点 · 日程」',
     what: [
@@ -189,6 +305,7 @@ const SECTIONS: Section[] = [
       '「日程」：在这个城市的每一天安排了什么',
       '「交通」：圣诞期间提醒、到了以后怎么进城（选定住处后能直接查到住处的公交路线）、车票种类和价格、推荐 App、小贴士、我的笔记',
       '「地图」：住宿和景点用不同图标，已选定的会高亮',
+      '「相册」：这个城市的照片（见「相册」一节）',
       '带虚线框「推荐 · 需核实」的是我调研填的；价格和开放时间出发前请点「官网」再确认',
     ],
     steps: [
@@ -203,6 +320,35 @@ const SECTIONS: Section[] = [
       '展开「Nordiska museet」→「加入日程」→ 选 12/25 那天。',
     ],
     link: { to: '/city/stop-stockholm', label: '去斯德哥尔摩' },
+  },
+  // ---------- 相册 ----------
+  {
+    id: 'album',
+    icon: 'camera',
+    title: '相册',
+    summary: '每个城市一本自动排版的相册',
+    where: '城市详情的「相册」标签（「城市」里点有照片的城市会直接打开）',
+    what: [
+      '封面：一张大图 + 城市名，像杂志封面（可以自己选封面）',
+      '按景点分章：照片带位置信息的，自动归到 300 米内最近的景点；其余按日期放进「Promenade（城市漫步）」',
+      '每一章自动换版式，不是一排排的方格：单张大图、一大两小、错落的两张竖图、叠放的照片、四张大小交错的拼图、横滑轮播（像 Instagram 多图帖子）、拍立得、两列错落的照片堆',
+      '每一章可以「写一句话」，像杂志引言一样显示在标题下面',
+      '看大图：左右滑动（电脑上用 ← → 键或两边的箭头）、点一下放大、写说明、换景点、设为封面、删除',
+      '「整理」：多选照片，一起归到某个景点、设封面或删除',
+    ],
+    steps: [
+      '「上传照片」→ 从相册选照片（可以一次选很多张）',
+      '选「放在哪里」：自动整理（推荐）/ 都是在同一个地方拍的（再选景点）/ 都放进城市漫步',
+      '点「添加 N 张」，等它处理完（缩小照片、读拍摄时间和地点）',
+      '往下滑欣赏；点任何一张看大图',
+      '没归对的：看大图时点「换个景点」，或者用「整理」多选后「归到…」',
+    ],
+    example: [
+      '从哥本哈根回来：「城市 → 哥本哈根 → 相册 → 上传照片」，一次选 30 张 →「自动整理」。',
+      '在新港拍的 5 张成了一章「Nyhavn」（一张大图 + 四张拼图），Tivoli 的 7 张是一张大图加一个横滑轮播，没有位置信息的照片按日期成了「Promenade」的拍立得。再点最喜欢的一张「设为封面」。',
+    ],
+    tip: '照片缩小后保存（长边 2048 像素，看大图足够清楚），原图还在手机相册里，不会被改动。手机上传时如果去掉了位置信息，就用「整理」手动归类。电脑上测试可以用任何 JPG 照片。',
+    link: { to: '/city/stop-copenhagen?tab=album', label: '去哥本哈根的相册' },
   },
   // ---------- 7. 城际交通 ----------
   {
@@ -322,6 +468,25 @@ const SECTIONS: Section[] = [
     example: ['在哥本哈根吃了 DKK 85 的午饭：「记一笔」→ 金额 85 → 币种 DKK → 分类「餐饮」→ 备注「午饭」→ 保存。会显示约 €11.4，餐饮的进度条跟着变。'],
     link: { to: '/budget', label: '去预算' },
   },
+  // ---------- 旅行手册 ----------
+  {
+    id: 'carnet',
+    icon: 'book',
+    title: '旅行手册',
+    summary: '整个行程一页看完，可以打印或存成 PDF',
+    where: '「本次旅行」→「生成旅行手册」；或「更多 → 旅行手册」',
+    what: [
+      'I 路线：每个目的地、日期、住几晚',
+      'II 机票和交通：航班号 / 车次、时间、是否已订，点开就是车票',
+      'III 住宿：每个城市住哪、地址、入住和退房时间，还没订的会标出来',
+      'IV 每日安排：每天在哪、几点去哪里、当天的交通、节假日提醒',
+      'V 景点：每个城市已选定的景点和推荐，带门票和节假日提醒',
+      'VI 相册：每个城市的封面照片',
+    ],
+    steps: ['打开后往下看；任何一项点进去都能修改', '「打印 / 存成 PDF」：电脑上会打开打印窗口，选「另存为 PDF」；按钮和底部导航不会被打印'],
+    example: ['出发前一天：打开旅行手册，检查「机票和交通」每段都是「已订」、「住宿」每个城市都有地方住，再「打印 / 存成 PDF」发给家人。'],
+    link: { to: '/carnet', label: '去旅行手册' },
+  },
   // ---------- 12. 常用链接 ----------
   {
     id: 'links',
@@ -341,7 +506,11 @@ const SECTIONS: Section[] = [
     title: '备份与恢复',
     summary: '导出全部数据（含车票文件）',
     where: '「更多 → 备份与恢复」',
-    what: ['导出一个文件：全部行程、地点、日程、车票图片和 PDF、花费记录', '从备份恢复（会替换现在的全部数据，恢复前会让你确认）'],
+    what: [
+      '导出一个文件：全部旅行、地点、日程、车票图片和 PDF、花费记录、相册照片',
+      '照片多时文件会很大，可以取消勾选「包含相册照片」；这种备份恢复时，设备里现有的照片保持不动',
+      '从备份恢复（会替换现在的全部数据，恢复前会让你确认）',
+    ],
     steps: [
       '「导出备份」：手机上会弹出分享面板，选「存储到文件」或发给自己；电脑上直接下载',
       '「从备份恢复」：选之前导出的文件 → 确认',
@@ -556,27 +725,34 @@ function SectionCard({
             </span>
           </p>
 
-          {/* 能做什么 */}
-          <h3 className="mt-4 text-[13px] font-semibold">能做什么</h3>
-          <ul className="mt-1.5 flex flex-col gap-1.5">
-            {s.what.map((w) => (
-              <li key={w} className="flex gap-2 text-[13px] leading-relaxed">
-                <span className="mt-[9px] h-1 w-1 shrink-0 rounded-full bg-muted" />
-                <span>{w}</span>
-              </li>
-            ))}
-          </ul>
+          {s.phases ? (
+            // 完整例子：按阶段列出步骤，全程编号
+            <Phases phases={s.phases} />
+          ) : (
+            <>
+              {/* 能做什么 */}
+              <h3 className="mt-4 text-[13px] font-semibold">能做什么</h3>
+              <ul className="mt-1.5 flex flex-col gap-1.5">
+                {s.what.map((w) => (
+                  <li key={w} className="flex gap-2 text-[13px] leading-relaxed">
+                    <span className="mt-[9px] h-1 w-1 shrink-0 rounded-full bg-muted" />
+                    <span>{w}</span>
+                  </li>
+                ))}
+              </ul>
 
-          {/* 怎么用 */}
-          <h3 className="mt-4 text-[13px] font-semibold">怎么用</h3>
-          <ol className="mt-1.5 flex flex-col gap-2">
-            {s.steps.map((st, i) => (
-              <li key={st} className="flex gap-2.5 text-[13px] leading-relaxed">
-                <span className="mt-[1px] flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-oat text-[11px] font-semibold">{i + 1}</span>
-                <span>{st}</span>
-              </li>
-            ))}
-          </ol>
+              {/* 怎么用 */}
+              <h3 className="mt-4 text-[13px] font-semibold">怎么用</h3>
+              <ol className="mt-1.5 flex flex-col gap-2">
+                {s.steps.map((st, i) => (
+                  <li key={st} className="flex gap-2.5 text-[13px] leading-relaxed">
+                    <span className="mt-[1px] flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-oat text-[11px] font-semibold">{i + 1}</span>
+                    <span>{st}</span>
+                  </li>
+                ))}
+              </ol>
+            </>
+          )}
 
           {/* 例子 */}
           <div className="mt-4 rounded-xl bg-oat px-3.5 py-3">
@@ -615,5 +791,46 @@ function SectionCard({
         </div>
       )}
     </section>
+  )
+}
+
+// 完整例子的各个阶段：阶段标题 + 什么时候 + 步骤（全程连续编号，有的带跳转按钮）
+function Phases({ phases }: { phases: Phase[] }) {
+  // 全程编号的起点
+  let n = 0
+  // 返回
+  return (
+    <div className="mt-2">
+      {phases.map((ph, pi) => (
+        <div key={ph.title} className="mt-4">
+          {/* 阶段标题 */}
+          <div className="flex items-baseline gap-2">
+            <span className="font-serif text-[16px] italic text-accent">{pi + 1}</span>
+            <h3 className="text-[14px] font-semibold">{ph.title}</h3>
+            <span className="text-[12px] text-muted">· {ph.when}</span>
+          </div>
+          {/* 步骤：左边一条竖线把同一阶段连起来 */}
+          <ol className="mt-2 ml-2 flex flex-col gap-2.5 border-l border-line-strong pl-3.5">
+            {ph.steps.map((st) => {
+              // 全程第几步
+              n += 1
+              // 一步
+              return (
+                <li key={st.text} className="text-[13px] leading-relaxed">
+                  <span className="mr-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-oat px-1 text-[11px] font-semibold">{n}</span>
+                  {st.text}
+                  {st.link && (
+                    <Link to={st.link.to} className="ml-1.5 inline-flex items-center gap-0.5 text-[12px] whitespace-nowrap text-accent underline underline-offset-2">
+                      {st.link.label}
+                      <Icon name="chevronRight" size={11} />
+                    </Link>
+                  )}
+                </li>
+              )
+            })}
+          </ol>
+        </div>
+      ))}
+    </div>
   )
 }

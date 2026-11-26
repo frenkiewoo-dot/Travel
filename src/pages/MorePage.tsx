@@ -1,5 +1,5 @@
 // ============================================================
-// 更多：使用说明、本次旅行、常用链接、备份与恢复、外观设置、数据存储状态、建设进度
+// 更多：使用说明、我的旅行、本次旅行、旅行手册、常用链接、备份与恢复、外观设置、数据存储状态、建设进度
 // ============================================================
 
 // 引入 React 钩子
@@ -23,6 +23,7 @@ const PLAN: { step: number; title: string; done: boolean }[] = [
   { step: 6, title: '预算、常用链接、导出 / 导入备份', done: true },
   { step: 7, title: '推荐青旅和景点、圣诞期间开放情况', done: true },
   { step: 8, title: '使用说明、电脑上测试、交付', done: true },
+  { step: 9, title: '相册、多次旅行、旅行手册', done: true },
 ]
 
 // 主题选项
@@ -67,6 +68,18 @@ export default function MorePage() {
         <Icon name="chevronRight" size={16} className="shrink-0 opacity-75" />
       </Link>
 
+      {/* 我的旅行 */}
+      <Link to="/trips" className="mt-3 flex items-center justify-between rounded-2xl border border-line bg-card p-4">
+        <span className="flex items-center gap-2 text-[15px] font-semibold">
+          <Icon name="plane" size={17} />
+          我的旅行
+        </span>
+        <span className="flex items-center gap-1 text-[12px] text-muted">
+          新建 · 切换 · 以前的旅行
+          <Icon name="chevronRight" size={15} />
+        </span>
+      </Link>
+
       {/* 本次旅行入口 */}
       <Link to="/trip" className="mt-3 flex items-center justify-between rounded-2xl border border-line bg-card p-4">
         <span className="flex items-center gap-2 text-[15px] font-semibold">
@@ -75,6 +88,18 @@ export default function MorePage() {
         </span>
         <span className="flex items-center gap-1 text-[12px] text-muted">
           目的地 · 机票 · 住宿
+          <Icon name="chevronRight" size={15} />
+        </span>
+      </Link>
+
+      {/* 旅行手册 */}
+      <Link to="/carnet" className="mt-3 flex items-center justify-between rounded-2xl border border-line bg-card p-4">
+        <span className="flex items-center gap-2 text-[15px] font-semibold">
+          <Icon name="book" size={17} />
+          旅行手册
+        </span>
+        <span className="flex items-center gap-1 text-[12px] text-muted">
+          一页看完 · 可打印
           <Icon name="chevronRight" size={15} />
         </span>
       </Link>

@@ -25,6 +25,8 @@ import SegmentPage from './pages/SegmentPage'
 import TicketsPage from './pages/TicketsPage'
 import TicketPage from './pages/TicketPage'
 import GuidePage from './pages/GuidePage'
+import TripsPage from './pages/TripsPage'
+import CarnetPage from './pages/CarnetPage'
 
 // App 组件
 export default function App() {
@@ -84,6 +86,10 @@ function Shell() {
             <Route path="/more" element={<MorePage />} />
             {/* 使用说明 */}
             <Route path="/guide" element={<GuidePage />} />
+            {/* 我的旅行（多次旅行） */}
+            <Route path="/trips" element={<TripsPage />} />
+            {/* 旅行手册 */}
+            <Route path="/carnet" element={<CarnetPage />} />
             {/* 其他未知网址：回首页 */}
             <Route path="*" element={<HomePage />} />
           </Routes>

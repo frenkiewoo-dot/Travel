@@ -501,3 +501,55 @@ input[type="search"]::-webkit-search-decoration {
     animation: none;
   }
 }
+
+/* ===== 打印（旅行手册「打印 / 存成 PDF」） =====
+   - 不打印按钮和底部导航（带 no-print 的元素）
+   - 页面不再限制成一屏高、可以滚动的区域全部展开，内容一页接一页
+   - 深色模式下打印也用浅色（白纸黑字） */
+@media print {
+  :root,
+  :root[data-theme='dark'] {
+    --paper: #ffffff;
+    --card: #ffffff;
+    --oat: #f3eee6;
+    --ink: #2e2823;
+    --muted: #6b6157;
+    --line: #e2d8ca;
+    --line-strong: #cdbfaa;
+    --accent: #7a3434;
+    --accent-soft: #f5e9e4;
+    --sage: #4a5a3c;
+    --sage-soft: #e6ebdf;
+    --shadow: transparent;
+    color-scheme: light;
+  }
+  html,
+  body,
+  #root,
+  .h-full {
+    height: auto !important;
+  }
+  #root {
+    max-width: none !important;
+    transform: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+  }
+  body {
+    background: #ffffff !important;
+  }
+  .overflow-y-auto,
+  .min-h-0 {
+    overflow: visible !important;
+    min-height: 0 !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  /* 卡片不要被分页切成两半 */
+  .print-flow section > div > div,
+  .print-flow li {
+    break-inside: avoid;
+  }
+}

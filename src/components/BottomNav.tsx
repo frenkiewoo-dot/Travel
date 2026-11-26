@@ -31,7 +31,7 @@ export function BottomNav() {
       // 读屏软件读出的名字
       aria-label="主导航"
       // 样式：卡片底色、顶部细线、六等分网格；底部留出 iPhone 的横条安全区
-      className="grid shrink-0 grid-cols-6 border-t border-line bg-card pb-[max(env(safe-area-inset-bottom),8px)] pt-2"
+      className="no-print grid shrink-0 grid-cols-6 border-t border-line bg-card pb-[max(env(safe-area-inset-bottom),8px)] pt-2"
     >
       {/* 逐个渲染标签 */}
       {TABS.map((t) => (
