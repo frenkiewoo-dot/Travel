@@ -18,6 +18,8 @@ import { TicketCard } from '../components/TicketCard'
 import { TicketForm, segmentName } from '../components/TicketForm'
 // 引入加载画面
 import { Loading } from './HomePage'
+// 引入备份时间
+import { backupAgeText, useLastBackup } from './BackupPage'
 
 // 页面组件
 export default function TicketsPage() {
@@ -27,6 +29,8 @@ export default function TicketsPage() {
   const data = useTripData()
   // 每天概况
   const itin = useItinerary(data)
+  // 上次备份时间
+  const lastBackup = useLastBackup()
   // 添加表单：null 不显示；segId 是预先选好的交通段
   const [adding, setAdding] = useState<{ segId?: string } | null>(null)
 
@@ -67,6 +71,14 @@ export default function TicketsPage() {
       </div>
       {/* 说明 */}
       <p className="mt-2 text-[12px] leading-relaxed text-muted">车票文件只存在这台手机里，断网也能打开。检票时点「全屏显示」。</p>
+      {/* 有车票但很久没备份：提醒 */}
+      {data.tickets.length > 0 && (!lastBackup || Date.now() - lastBackup > 7 * 86400000) && (
+        <Link to="/backup" className="mt-3 flex items-center gap-2 rounded-xl bg-accent-soft px-3 py-2.5 text-[12px] leading-relaxed text-accent">
+          <Icon name="alert" size={15} className="shrink-0" />
+          <span className="flex-1">{backupAgeText(lastBackup)}。换手机或清浏览器数据会丢失车票，建议导出一份备份。</span>
+          <Icon name="chevronRight" size={14} className="shrink-0" />
+        </Link>
+      )}
 
       {/* 每段交通 */}
       {segments.map((seg) => {

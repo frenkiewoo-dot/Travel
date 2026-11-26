@@ -1,5 +1,5 @@
 // ============================================================
-// 更多：外观设置、数据存储状态、建设进度
+// 更多：本次旅行、常用链接、备份与恢复、外观设置、数据存储状态、建设进度
 // ============================================================
 
 // 引入 React 钩子
@@ -10,6 +10,8 @@ import { Link } from 'react-router-dom'
 import { setThemePref, useThemePref, type ThemePref } from '../lib/theme'
 // 引入图标
 import { Icon } from '../components/Icon'
+// 引入备份时间
+import { backupAgeText, useLastBackup } from './BackupPage'
 
 // 建设计划（每一步做什么）
 const PLAN: { step: number; title: string; done: boolean }[] = [
@@ -18,7 +20,7 @@ const PLAN: { step: number; title: string; done: boolean }[] = [
   { step: 3, title: '行程编辑、城市详情（酒店 / 景点）', done: true },
   { step: 4, title: '日程安排、城际与市内交通', done: true },
   { step: 5, title: '票夹（车票离线查看、全屏二维码）', done: true },
-  { step: 6, title: '预算、常用链接、导出 / 导入备份', done: false },
+  { step: 6, title: '预算、常用链接、导出 / 导入备份', done: true },
   { step: 7, title: '调研填充真实数据、圣诞节期间提醒', done: false },
 ]
 
@@ -33,6 +35,8 @@ const THEMES: { value: ThemePref; label: string }[] = [
 export default function MorePage() {
   // 当前主题偏好
   const pref = useThemePref()
+  // 上次备份时间
+  const lastBackup = useLastBackup()
   // 是否已获得持久存储
   const [persisted, setPersisted] = useState<boolean | null>(null)
 
@@ -58,6 +62,30 @@ export default function MorePage() {
         </span>
         <span className="flex items-center gap-1 text-[12px] text-muted">
           目的地 · 机票 · 住宿
+          <Icon name="chevronRight" size={15} />
+        </span>
+      </Link>
+
+      {/* 常用链接 */}
+      <Link to="/links" className="mt-3 flex items-center justify-between rounded-2xl border border-line bg-card p-4">
+        <span className="flex items-center gap-2 text-[15px] font-semibold">
+          <Icon name="link" size={17} />
+          常用链接
+        </span>
+        <span className="flex items-center gap-1 text-[12px] text-muted">
+          交通 · 地图 · 订房
+          <Icon name="chevronRight" size={15} />
+        </span>
+      </Link>
+
+      {/* 备份与恢复 */}
+      <Link to="/backup" className="mt-3 flex items-center justify-between rounded-2xl border border-line bg-card p-4">
+        <span className="flex items-center gap-2 text-[15px] font-semibold">
+          <Icon name="download" size={17} />
+          备份与恢复
+        </span>
+        <span className={`flex items-center gap-1 text-[12px] ${!lastBackup || Date.now() - lastBackup > 7 * 86400000 ? 'text-accent' : 'text-muted'}`}>
+          {backupAgeText(lastBackup)}
           <Icon name="chevronRight" size={15} />
         </span>
       </Link>
@@ -90,7 +118,7 @@ export default function MorePage() {
         <p className="mt-2 text-[13px] leading-relaxed text-muted">
           所有数据只存在这台手机里，不会上传。
           {persisted === true && ' 已开启持久存储，系统不会自动清理。'}
-          {persisted === false && ' 建议把 App 添加到主屏幕使用，并定期导出备份（第 6 步加入）。'}
+          {persisted === false && ' 建议把 App 添加到主屏幕使用，并定期在「备份与恢复」里导出备份。'}
         </p>
       </section>
 

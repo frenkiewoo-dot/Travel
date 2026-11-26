@@ -13,7 +13,9 @@ import HomePage from './pages/HomePage'
 import DayPage from './pages/DayPage'
 import UpcomingPage from './pages/UpcomingPage'
 import MorePage from './pages/MorePage'
-import ComingSoon from './pages/ComingSoon'
+import BudgetPage from './pages/BudgetPage'
+import LinksPage from './pages/LinksPage'
+import BackupPage from './pages/BackupPage'
 import MapPage from './pages/MapPage'
 import NavPage from './pages/NavPage'
 import CityPage from './pages/CityPage'
@@ -67,11 +69,12 @@ function Shell() {
             <Route path="/map" element={<MapPage />} />
             {/* App 内导航 */}
             <Route path="/nav" element={<NavPage />} />
-            {/* 预算（第 6 步） */}
-            <Route
-              path="/budget"
-              element={<ComingSoon title="预算" step={6} items={['分类记账：交通 / 住宿 / 餐饮 / 门票 / 购物 / 其他', '计划 vs 实际', '欧元和丹麦克朗，汇率可手动设置', '总额不固定，随时可以改']} />}
-            />
+            {/* 预算 */}
+            <Route path="/budget" element={<BudgetPage />} />
+            {/* 常用链接 */}
+            <Route path="/links" element={<LinksPage />} />
+            {/* 备份与恢复 */}
+            <Route path="/backup" element={<BackupPage />} />
             {/* 票夹 */}
             <Route path="/tickets" element={<TicketsPage />} />
             {/* 一张车票 */}
