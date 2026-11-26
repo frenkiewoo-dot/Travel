@@ -1,5 +1,6 @@
 // ============================================================
 // 修改行程的操作（所有写数据库的地方集中在这里）
+//   - 多次旅行：新建、切换、删除
 //   - 改旅行信息（名称、出发日期、人数）
 //   - 改城市列表（增删、排序、住几晚）：
 //       · 城际交通段自动重新连接，已有的交通信息保留
@@ -9,13 +10,80 @@
 // ============================================================
 
 // 引入数据库
-import { db } from './db'
+import { ACTIVE_TRIP_KEY, db } from './db'
 // 引入数据结构
 import type { DayPlan, Place, Segment, Stop, TransportOption, Trip } from './schema'
 // 引入行程计算
 import { computeSpans, totalDays } from '../lib/itinerary'
 // 引入生成 ID 的工具
 import { newId } from './pins'
+
+// ---------- 多次旅行 ----------
+
+// 切换“当前旅行”（首页、今日旅程、票夹、预算等都跟着切换）
+export async function setActiveTrip(tripId: string): Promise<void> {
+  // 存进设置
+  await db.settings.put({ key: ACTIVE_TRIP_KEY, value: tripId })
+}
+
+// 新建一次旅行：只有“出发”和“回家”两个地点，目的地之后在「本次旅行」里加
+export async function createTrip(opts: {
+  // 名称
+  name: string
+  // 副标题
+  subtitle?: string
+  // 出发日期（没定就是 null）
+  startDate: string | null
+  // 人数
+  travelers: number
+  // 出发 / 回家的城市
+  home: Pick<Stop, 'name' | 'nameZh' | 'country' | 'lat' | 'lng'>
+}): Promise<string> {
+  // 新旅行的 ID
+  const tripId = newId('trip')
+  // 现在
+  const now = Date.now()
+  // 出发和回家（同一个城市）
+  const stops: Stop[] = [
+    { id: newId('stop'), tripId, order: 0, kind: 'home', nights: 0, ...opts.home },
+    { id: newId('stop'), tripId, order: 1, kind: 'home', nights: 0, ...opts.home },
+  ]
+  // 先写旅行本身
+  await db.trips.add({ id: tripId, name: opts.name, subtitle: opts.subtitle, travelers: opts.travelers, startDate: opts.startDate, baseCurrency: 'EUR', createdAt: now, updatedAt: now })
+  // 再写地点（会自动生成两地之间的交通段）
+  await saveStops(tripId, stops)
+  // 设为当前旅行
+  await setActiveTrip(tripId)
+  // 返回 ID
+  return tripId
+}
+
+// 删除一次旅行和它的全部数据（城市、交通、酒店景点、日程、车票、花费、照片）
+export async function deleteTrip(tripId: string): Promise<void> {
+  // 一次性完成
+  await db.transaction('rw', [db.trips, db.stops, db.segments, db.places, db.dayPlans, db.tickets, db.ticketFiles, db.expenses, db.photos, db.settings], async () => {
+    // 车票文件（按车票删）
+    const ticketIds = (await db.tickets.where('tripId').equals(tripId).toArray()).map((t) => t.id)
+    for (const id of ticketIds) await db.ticketFiles.where('ticketId').equals(id).delete()
+    // 各张表里属于这次旅行的
+    await db.tickets.where('tripId').equals(tripId).delete()
+    await db.stops.where('tripId').equals(tripId).delete()
+    await db.segments.where('tripId').equals(tripId).delete()
+    await db.places.where('tripId').equals(tripId).delete()
+    await db.dayPlans.where('tripId').equals(tripId).delete()
+    await db.expenses.where('tripId').equals(tripId).delete()
+    await db.photos.where('tripId').equals(tripId).delete()
+    // 旅行本身
+    await db.trips.delete(tripId)
+    // 删的是当前旅行：换成剩下的第一个
+    const active = (await db.settings.get(ACTIVE_TRIP_KEY))?.value
+    if (active === tripId) {
+      const next = await db.trips.toCollection().first()
+      if (next) await db.settings.put({ key: ACTIVE_TRIP_KEY, value: next.id })
+      else await db.settings.delete(ACTIVE_TRIP_KEY)
+    }
+  })
+}
 
 // ---------- 旅行信息 ----------
 
@@ -30,7 +98,7 @@ export async function updateTrip(id: string, patch: Partial<Trip>) {
 // 保存新的城市列表（顺序按数组顺序），并自动整理交通段和日程
 export async function saveStops(tripId: string, nextStops: Stop[]) {
   // 用事务：要么全部成功，要么全部不改
-  await db.transaction('rw', [db.stops, db.segments, db.dayPlans, db.places, db.trips], async () => {
+  await db.transaction('rw', [db.stops, db.segments, db.dayPlans, db.places, db.trips, db.photos], async () => {
     // 旧的城市列表（按顺序）
     const oldStops = await db.stops.where('tripId').equals(tripId).sortBy('order')
     // 旧的交通段
@@ -64,6 +132,8 @@ export async function saveStops(tripId: string, nextStops: Stop[]) {
     const removedIds = oldStops.filter((o) => !stops.some((s) => s.id === o.id)).map((o) => o.id)
     // 逐个删除
     for (const id of removedIds) await db.places.where('stopId').equals(id).delete()
+    // 删掉的城市的照片也一起删（删除前页面会提醒）
+    for (const id of removedIds) await db.photos.where('stopId').equals(id).delete()
 
     // 5. 写回数据库：先清空旧的，再写新的
     await db.stops.where('tripId').equals(tripId).delete()

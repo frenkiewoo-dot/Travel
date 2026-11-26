@@ -2,19 +2,31 @@
 // 城市（底部导航“城市”）
 //   - 本次旅行：按时间顺序，按国家分组，显示日期和住宿状态
 //   - 以后想去：按国家分组（例如柏林）
-//   点一个城市进去：酒店、景点、日程、交通、地图，和原来一样
+//   - 去过的城市：其他旅行里有照片的城市（点进去看相册）
+//   有照片的城市在卡片左边显示封面小图
+//   点一个城市进去：酒店、景点、日程、交通、地图、相册
 // ============================================================
 
 // 引入 React 钩子
 import { useMemo, useState, type ReactNode } from 'react'
 // 引入路由
 import { Link } from 'react-router-dom'
+// 引入实时查询
+import { useLiveQuery } from 'dexie-react-hooks'
+// 引入数据库
+import { db } from '../db/db'
+// 引入照片概况
+import { usePhotoSummary, type StopPhotoSummary } from '../db/photos'
+// 引入照片显示
+import { PhotoImg } from '../components/Album'
 // 引入数据钩子
 import { useItinerary, useTripData, type TripData } from '../db/hooks'
 // 引入数据结构
 import type { Stop } from '../db/schema'
 // 引入数据操作
 import { saveStops } from '../db/trip'
+// 引入推荐地点合并
+import { mergePlaces } from '../db/content'
 // 引入行程工具
 import { computeSpans, dayLabel } from '../lib/itinerary'
 // 引入坐标类型
@@ -55,6 +67,19 @@ export default function CitiesPage() {
   const spans = useMemo(() => (data ? computeSpans(data.stops) : []), [data])
   // 城市搜索的默认中心
   const near = useMemo<LngLat>(() => (data?.stops[0] ? [data.stops[0].lng, data.stops[0].lat] : [10, 53]), [data])
+  // 照片概况（城市 ID → 张数、封面）
+  const photos = usePhotoSummary()
+  // 其他旅行里有照片的城市（去过的城市）
+  const visited = useLiveQuery(async () => {
+    // 有照片的城市 ID
+    const ids = [...(photos?.keys() ?? [])]
+    // 读出这些城市
+    const stops = (await db.stops.bulkGet(ids)).filter((s): s is Stop => !!s && s.tripId !== data?.trip.id)
+    // 旅行名称
+    const trips = await db.trips.bulkGet([...new Set(stops.map((s) => s.tripId))])
+    // 返回城市和它所在旅行的名称
+    return stops.map((s) => ({ stop: s, tripName: trips.find((t) => t?.id === s.tripId)?.name ?? '' }))
+  }, [photos, data?.trip.id])
 
   // 加载中
   if (!data || !itin) return <Loading />
@@ -67,6 +92,8 @@ export default function CitiesPage() {
   const onSaved = async (draft: StopDraft) => {
     // 加在最后
     await saveStops(data.trip.id, [...data.stops, { ...draft, kind: 'saved', tripId: data.trip.id, order: data.stops.length }])
+    // 检查有没有这个城市的推荐青旅和景点
+    await mergePlaces()
     // 关闭表单
     setAdding(false)
   }
@@ -95,7 +122,7 @@ export default function CitiesPage() {
             // 日期范围
             const range = sp ? `${dayLabel(itin.days[sp.arriveDay - 1])} — ${dayLabel(itin.days[sp.departDay - 1])}` : ''
             // 城市卡片
-            return <CityCard key={s.id} stop={s} data={data} sub={`${range} · ${s.nights} 晚`} />
+            return <CityCard key={s.id} stop={s} data={data} photo={photos?.get(s.id)} sub={`${range} · ${s.nights} 晚`} />
           })}
         </CountryGroup>
       ))}
@@ -105,7 +132,7 @@ export default function CitiesPage() {
       {groupByCountry(saved).map((g) => (
         <CountryGroup key={g.country} country={g.country}>
           {g.stops.map((s) => (
-            <CityCard key={s.id} stop={s} data={data} sub="以后去" />
+            <CityCard key={s.id} stop={s} data={data} photo={photos?.get(s.id)} sub="以后去" />
           ))}
         </CountryGroup>
       ))}
@@ -115,6 +142,25 @@ export default function CitiesPage() {
         <Icon name="plus" size={15} />
         添加以后想去的城市
       </button>
+
+      {/* ===== 去过的城市（其他旅行里有照片的） ===== */}
+      {!!visited?.length && (
+        <>
+          <div className="mt-8 flex items-end justify-between">
+            <h2 className="text-[17px] font-semibold">去过的城市</h2>
+            <Link to="/trips" className="flex items-center gap-1 text-[13px] text-accent">
+              我的旅行
+              <Icon name="chevronRight" size={14} />
+            </Link>
+          </div>
+          <p className="mt-0.5 text-[12px] text-muted">以前旅行里拍过照片的城市，点进去看相册。</p>
+          <div className="mt-3 flex flex-col gap-2">
+            {visited.map(({ stop: s, tripName }) => (
+              <CityCard key={s.id} stop={s} photo={photos?.get(s.id)} sub={tripName} toAlbum />
+            ))}
+          </div>
+        </>
+      )}
 
       {/* 表单 */}
       {adding && <StopForm initial={null} near={near} defaultKind="saved" onSave={onSaved} onClose={() => setAdding(false)} />}
@@ -139,10 +185,10 @@ function CountryGroup({ country, children }: { country: string; children: ReactN
   )
 }
 
-// 城市卡片
-function CityCard({ stop: s, data, sub }: { stop: Stop; data: TripData; sub: string }) {
-  // 这个城市的地点
-  const places = data.places.filter((p) => p.stopId === s.id)
+// 城市卡片（有照片的显示封面小图；toAlbum = 直接打开相册标签）
+function CityCard({ stop: s, data, sub, photo, toAlbum }: { stop: Stop; data?: TripData; sub: string; photo?: StopPhotoSummary; toAlbum?: boolean }) {
+  // 这个城市的地点（其他旅行的城市不需要）
+  const places = data?.places.filter((p) => p.stopId === s.id) ?? []
   // 住宿状态
   const booked = places.some((p) => p.category === 'hotel' && p.status === 'booked')
   const selected = places.some((p) => p.category === 'hotel' && p.status === 'selected')
@@ -150,21 +196,28 @@ function CityCard({ stop: s, data, sub }: { stop: Stop; data: TripData; sub: str
   const spots = places.filter((p) => p.category !== 'hotel').length
   // 返回
   return (
-    <Link to={`/city/${s.id}`} className="flex items-center gap-3 rounded-2xl border border-line bg-card p-4">
+    <Link to={`/city/${s.id}${toAlbum || photo ? '?tab=album' : ''}`} className="flex items-center gap-3 rounded-2xl border border-line bg-card p-3 pl-4">
+      {/* 封面小图 */}
+      {photo && (
+        <span className="-my-0.5 -ml-1 h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-oat">
+          <PhotoImg photo={photo.cover} className="h-full w-full object-cover" />
+        </span>
+      )}
       <div className="min-w-0 flex-1">
         {/* 城市名 */}
         <div className="flex items-baseline gap-2">
           <span className="truncate font-serif text-[24px] leading-tight font-medium">{s.name}</span>
           <span className="truncate text-[12px] text-muted">{s.nameZh}</span>
         </div>
-        {/* 日期 / 以后去 */}
-        <div className="text-[12px] text-muted">
+        {/* 日期 / 以后去 / 哪次旅行 */}
+        <div className="truncate text-[12px] text-muted">
           {sub}
           {spots > 0 && ` · ${spots} 个景点`}
+          {photo && ` · ${photo.count} 张照片`}
         </div>
       </div>
       {/* 住宿状态（本次旅行的城市才显示） */}
-      {s.kind === 'stay' && (
+      {data && s.kind === 'stay' && (
         <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] ${booked ? 'bg-sage-soft text-sage' : selected ? 'bg-oat text-ink' : 'bg-accent-soft text-accent'}`}>
           {booked ? '住宿已订' : selected ? '住宿已选定' : '住宿未订'}
         </span>

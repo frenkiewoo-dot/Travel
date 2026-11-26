@@ -4,6 +4,7 @@
 //   - 交通方式：替换“推荐”的那些，保留你自己添加的，保留你选好的方式
 //   - 城市指南：直接更新成最新版（你自己的笔记存在别的字段，不受影响）
 //   - 推荐青旅和景点：没有的加进去；已有的只补空白字段；你删掉的不会再加回来
+//     初始的圣诞行程按城市 ID 对应；其他旅行（例如你新建的）按位置对应：住宿城市 15 公里内的推荐地点都会加进去
 //   - 你删掉的城市不会被加回来
 // ============================================================
 
@@ -13,6 +14,8 @@ import { db } from './db'
 import { CITY_GUIDES, CONTENT_VERSION, NEW_PLAN, NOEL_TRIP_ID, RECOMMENDED_PLACES, SEED_PLACE_IDS, SEGMENT_OPTIONS, type RecommendedPlace } from '../data/content'
 // 引入数据结构
 import type { Place, Stop } from './schema'
+// 引入距离计算
+import { distanceMeters } from '../lib/geo'
 // 引入保存城市列表（会自动整理交通段和日程）
 import { saveStops } from './trip'
 
@@ -23,8 +26,8 @@ const KEY = 'contentVersion'
 export async function applyContent(): Promise<void> {
   // 已经合并过的版本
   const done = ((await db.settings.get(KEY))?.value as number | undefined) ?? 0
-  // 已经是最新的就不用做
-  if (done >= CONTENT_VERSION) return
+  // 推荐青旅和景点：每次启动都检查一遍（新建的旅行、新加的城市也能拿到推荐；已有的不会重复加）
+  if (done >= CONTENT_VERSION) return mergePlaces()
   // 第 2 版：行程变更（只执行一次）
   if (done < 2) await applyNewPlan()
   // 第 3 版起：推荐青旅和景点
@@ -103,27 +106,40 @@ const SEEN_KEY = 'recPlacesSeen'
 // 推荐地点里可以补充的文字字段
 const FILL_KEYS: (keyof RecommendedPlace)[] = ['nameZh', 'address', 'url', 'priceNote', 'ticket', 'openingHours', 'duration', 'holidayNote', 'sourceUrl', 'note']
 
-// 合并推荐青旅和景点
-async function mergePlaces(): Promise<void> {
+// 推荐地点离城市中心多近才算这个城市的（其他旅行按位置对应时用）
+const CITY_RADIUS_M = 15000
+
+// 合并推荐青旅和景点（启动时、在「本次旅行」里改了城市后都会调用）
+export async function mergePlaces(): Promise<void> {
   // 用事务一次性完成
   await db.transaction('rw', [db.places, db.stops, db.settings], async () => {
     // 已经加过的推荐地点（第一次合并时，初始数据里的地点算已经加过）
     const saved = (await db.settings.get(SEEN_KEY))?.value as string[] | undefined
     const seen = new Set<string>(saved ?? SEED_PLACE_IDS)
-    // 行程里现有的城市
-    const stopIds = new Set((await db.stops.where('tripId').equals(NOEL_TRIP_ID).toArray()).map((s) => s.id))
-    // 行程里现有的地点
-    const places = await db.places.where('tripId').equals(NOEL_TRIP_ID).toArray()
-    // 按 ID 查找
+    // 所有城市
+    const allStops = await db.stops.toArray()
+    // 所有地点（按 ID 查找）
+    const places = await db.places.toArray()
     const byId = new Map(places.map((p) => [p.id, p]))
-    // 逐条处理（序号用来排序：推荐的按清单顺序，排在你自己添加的前面）
+    // 要处理的（推荐，城市，地点 ID）
+    const jobs: { rec: RecommendedPlace; stop: Stop; id: string; order: number }[] = []
+    // 逐条推荐
     for (const [i, rec] of RECOMMENDED_PLACES.entries()) {
-      // 城市不在行程里（例如你删掉了）：跳过
-      if (!stopIds.has(rec.stopId)) continue
-      // 排序用的序号
-      const order = i + 1
+      // 初始的圣诞行程：按城市 ID 对应，地点 ID 不变
+      const own = allStops.find((s) => s.id === rec.stopId && s.tripId === NOEL_TRIP_ID)
+      if (own) jobs.push({ rec, stop: own, id: rec.id, order: i + 1 })
+      // 其他旅行：住宿或以后想去的城市，离推荐地点 15 公里以内就算
+      for (const s of allStops) {
+        if (s.tripId === NOEL_TRIP_ID || (s.kind !== 'stay' && s.kind !== 'saved')) continue
+        if (distanceMeters([s.lng, s.lat], [rec.lng, rec.lat]) > CITY_RADIUS_M) continue
+        // 地点 ID：推荐 ID@城市 ID（同一个推荐在不同旅行里是不同的地点）
+        jobs.push({ rec, stop: s, id: `${rec.id}@${s.id}`, order: i + 1 })
+      }
+    }
+    // 逐个处理
+    for (const { rec, stop, id, order } of jobs) {
       // 手机里已有的同一个地点
-      const cur = byId.get(rec.id)
+      const cur = byId.get(id)
       if (cur) {
         // 已经变成你自己的（理论上不会）：不动
         if (cur.source !== 'recommended') continue
@@ -137,16 +153,16 @@ async function mergePlaces(): Promise<void> {
         if (cur.createdAt == null) patch.createdAt = order
         // 有要改的才写
         if (Object.keys(patch).length > 0) await db.places.update(cur.id, patch)
-      } else if (!seen.has(rec.id)) {
+      } else if (!seen.has(id)) {
         // 这个城市已经有选定 / 预订的住宿：推荐青旅默认隐藏（在城市页可以点「显示已隐藏的候选」看到）
-        const hasChosenHotel = rec.category === 'hotel' && places.some((p) => p.stopId === rec.stopId && p.category === 'hotel' && p.status !== 'candidate')
+        const hasChosenHotel = rec.category === 'hotel' && places.some((p) => p.stopId === stop.id && p.category === 'hotel' && p.status !== 'candidate')
         // 加进去：候选、推荐
-        await db.places.add({ ...rec, tripId: NOEL_TRIP_ID, status: 'candidate', source: 'recommended', hidden: hasChosenHotel || undefined, createdAt: order })
+        await db.places.add({ ...rec, id, stopId: stop.id, tripId: stop.tripId, status: 'candidate', source: 'recommended', hidden: hasChosenHotel || undefined, createdAt: order })
       }
       // 记下已经加过
-      seen.add(rec.id)
+      seen.add(id)
     }
-    // 保存记录
-    await db.settings.put({ key: SEEN_KEY, value: [...seen] })
+    // 有变化才保存记录
+    if (!saved || seen.size !== saved.length) await db.settings.put({ key: SEEN_KEY, value: [...seen] })
   })
 }

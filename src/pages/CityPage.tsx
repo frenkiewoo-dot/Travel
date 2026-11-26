@@ -1,6 +1,7 @@
 // ============================================================
 // 城市详情页（/city/城市ID）
-//   标签：酒店 / 景点 / 日程 / 交通 / 地图
+//   标签：酒店 / 景点 / 日程 / 交通 / 地图 / 相册
+//   - 可以打开任何一次旅行里的城市（例如在「城市」里点以前去过的城市看相册）
 //   - 酒店、景点：可以自己添加、编辑、删除，状态：候选 / 已选定 / 已预订
 //   - 酒店选定一个后，可以一键隐藏或删除其余候选
 //   - 我推荐的项目有“推荐 · 需核实”标签
@@ -11,7 +12,14 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 // 引入路由工具
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 // 引入数据钩子
-import { useItinerary, useTripData } from '../db/hooks'
+import { useActiveTripId, useItinerary, useTripData } from '../db/hooks'
+// 引入数据库（查这个城市属于哪次旅行）
+import { db } from '../db/db'
+import { useLiveQuery } from 'dexie-react-hooks'
+// 引入切换旅行
+import { setActiveTrip } from '../db/trip'
+// 引入相册
+import { Album } from '../components/Album'
 // 引入数据结构
 import type { Place, PlaceCategory, Segment, Stop } from '../db/schema'
 // 引入数据操作
@@ -40,7 +48,7 @@ import { Loading } from './HomePage'
 import { countryLocalUpper } from '../lib/countries'
 
 // 标签
-type Tab = 'hotel' | 'spots' | 'plan' | 'transport' | 'map'
+type Tab = 'hotel' | 'spots' | 'plan' | 'transport' | 'map' | 'album'
 // 标签列表
 const TABS: { value: Tab; label: string }[] = [
   { value: 'hotel', label: '酒店' },
@@ -48,6 +56,7 @@ const TABS: { value: Tab; label: string }[] = [
   { value: 'plan', label: '日程' },
   { value: 'transport', label: '交通' },
   { value: 'map', label: '地图' },
+  { value: 'album', label: '相册' },
 ]
 
 
@@ -62,8 +71,12 @@ export default function CityPage() {
   const [search, setSearch] = useSearchParams()
   // 页面跳转
   const navigate = useNavigate()
-  // 旅行数据
-  const data = useTripData()
+  // 这个城市属于哪次旅行（null = 找不到这个城市）
+  const owner = useLiveQuery(async () => (id ? ((await db.stops.get(id))?.tripId ?? null) : null), [id])
+  // 当前旅行 ID
+  const activeTripId = useActiveTripId()
+  // 读这个城市所在旅行的数据（找不到就读当前旅行）
+  const data = useTripData(owner ?? undefined)
   // 每天概况
   const itin = useItinerary(data)
   // 当前标签（记在网址里，返回时还在原来的标签）
@@ -87,8 +100,8 @@ export default function CityPage() {
   useEffect(() => {
     // 没提示
     if (!toast) return
-    // 2.5 秒后消失
-    const t = setTimeout(() => setToast(null), 2500)
+    // 2.5 秒后消失（长的提示多停一会儿）
+    const t = setTimeout(() => setToast(null), toast.length > 24 ? 5000 : 2500)
     // 清除
     return () => clearTimeout(t)
   }, [toast])
@@ -102,8 +115,8 @@ export default function CityPage() {
   // 这个城市的所有地点
   const places = useMemo(() => (data && stop ? data.places.filter((p) => p.stopId === stop.id) : []), [data, stop])
 
-  // 加载中
-  if (!data || !itin) return <Loading />
+  // 加载中（也要等查到城市属于哪次旅行，避免先显示错的旅行）
+  if (!data || !itin || owner === undefined || (owner && data.trip.id !== owner)) return <Loading />
   // 找不到这个城市（例如被删了）
   if (!stop)
     return (
@@ -161,15 +174,24 @@ export default function CityPage() {
         <button aria-label="返回" onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))} className="-ml-3 flex h-11 w-11 items-center justify-center">
           <Icon name="back" size={22} />
         </button>
-        {/* 国家 */}
-        <div className="text-[11px] tracking-[0.16em] text-muted">{countryLocalUpper(stop.country)}</div>
-        {/* 城市名 */}
-        <h1 className="font-serif text-[46px] leading-none font-medium">{stop.name}</h1>
+        {/* 国家（相册标签里省掉，给照片多留空间） */}
+        {tab !== 'album' && <div className="text-[11px] tracking-[0.16em] text-muted">{countryLocalUpper(stop.country)}</div>}
+        {/* 城市名（相册标签里小一点，封面上已经有大字城市名） */}
+        <h1 className={`font-serif leading-none font-medium ${tab === 'album' ? 'text-[30px]' : 'text-[46px]'}`}>{stop.name}</h1>
         {/* 中文名、日期、住几晚 */}
         <p className="mt-1.5 text-[14px] text-muted">
           {stop.nameZh} · {rangeText}
           {stop.kind === 'stay' && ` · 住 ${stop.nights} 晚`}
         </p>
+        {/* 不是当前旅行里的城市：说明一下，可以切换过去 */}
+        {activeTripId && data.trip.id !== activeTripId && (
+          <div className="mt-2 flex items-center justify-between gap-2 rounded-xl bg-oat px-3 py-2 text-[12px]">
+            <span className="min-w-0 truncate text-muted">来自旅行「{data.trip.name}」</span>
+            <button onClick={() => setActiveTrip(data.trip.id).then(() => navigate('/'))} className="shrink-0 text-accent underline underline-offset-2">
+              切换到这次旅行
+            </button>
+          </div>
+        )}
         {/* 标签栏 */}
         <div role="tablist" aria-label="城市内容" className="mt-4 flex gap-1 rounded-2xl bg-oat p-1">
           {TABS.map((t) => (
@@ -200,6 +222,9 @@ export default function CityPage() {
         />
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto px-5 pt-4 pb-8">
+          {/* ===== 相册 ===== */}
+          {tab === 'album' && <Album stop={stop} tripId={data.trip.id} places={places} onToast={setToast} />}
+
           {/* ===== 酒店 ===== */}
           {tab === 'hotel' && (
             <>
@@ -258,7 +283,7 @@ export default function CityPage() {
                 ))}
               </div>
               {/* 空状态 */}
-              {spots.length === 0 && <Empty text="推荐景点和圣诞市场会在第 7 步调研后填进来。现在也可以先自己添加。" />}
+              {spots.length === 0 && <Empty text="还没有景点。点「自己添加」搜索名字或地址；也可以在底部「地图」里搜索后放图钉、存进某一天的日程。" />}
             </>
           )}
 

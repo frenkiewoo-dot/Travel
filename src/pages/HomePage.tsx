@@ -244,13 +244,16 @@ export default function HomePage() {
 
       {/* 顶部：左边旅行名和状态，右边两个按钮 */}
       <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 px-4 pt-[max(env(safe-area-inset-top),16px)]">
-        {/* 左上角卡片 */}
-        <div className="pointer-events-auto min-w-0 rounded-2xl border border-line bg-glass px-3.5 py-2 shadow-[0_2px_12px_var(--shadow)] backdrop-blur">
+        {/* 左上角卡片（点它打开「我的旅行」：切换或新建旅行） */}
+        <Link to="/trips" aria-label="我的旅行：切换或新建旅行" className="pointer-events-auto min-w-0 rounded-2xl border border-line bg-glass px-3.5 py-2 shadow-[0_2px_12px_var(--shadow)] backdrop-blur">
           {/* 副标题（斜体衬线） */}
-          <div className="font-serif text-[15px] italic text-muted">{data.trip.subtitle ?? 'Voyage'}</div>
+          <div className="flex items-center gap-1 font-serif text-[15px] italic text-muted">
+            {data.trip.subtitle ?? 'Voyage'}
+            <Icon name="chevronDown" size={12} className="not-italic" />
+          </div>
           {/* 状态 */}
           <div className="truncate text-[14px] font-semibold">{status}</div>
-        </div>
+        </Link>
         {/* 右上角按钮组 */}
         <div className="pointer-events-auto flex shrink-0 gap-2">
           {/* 今日旅程：深色主按钮 */}

@@ -17,8 +17,12 @@ import { useItinerary, useTripData, type TripData } from '../db/hooks'
 import type { Place, Segment, Stop, StopKind, Ticket } from '../db/schema'
 // 引入数据操作
 import { saveStops, updateTrip } from '../db/trip'
+// 引入推荐地点合并（新加城市后自动带上推荐）
+import { mergePlaces } from '../db/content'
 // 引入车票工具
 import { useObjectUrl, useTicketFiles, viewableFiles } from '../db/tickets'
+// 引入照片概况（删除城市前提醒有几张照片）
+import { usePhotoSummary } from '../db/photos'
 // 引入行程工具
 import { MODE_LABEL, computeSpans, dayLabel, routeStops, type DayInfo } from '../lib/itinerary'
 // 引入坐标类型
@@ -54,6 +58,10 @@ export default function PlanPage() {
   const data = useTripData()
   // 每天概况
   const itin = useItinerary(data)
+  // 每个城市的照片概况
+  const photoSummary = usePhotoSummary()
+  // 城市 ID → 照片张数
+  const photoCounts = useMemo(() => new Map([...(photoSummary ?? new Map()).entries()].map(([k, v]) => [k, v.count])), [photoSummary])
   // 城市表单：null 不显示；stop 为 null 是新建，kind 是新建时的类型
   const [stopForm, setStopForm] = useState<{ stop: Stop | null; kind: StopKind } | null>(null)
   // 添加住宿的表单（对应的城市）
@@ -76,7 +84,8 @@ export default function PlanPage() {
   const saved = data.stops.filter((s) => s.kind === 'saved')
 
   // 保存：路线 + 以后想去
-  const commit = (nextRoute: Stop[], nextSaved: Stop[] = saved) => saveStops(trip.id, [...nextRoute, ...nextSaved])
+  // 保存城市列表，然后检查新加的城市有没有推荐的青旅和景点
+  const commit = (nextRoute: Stop[], nextSaved: Stop[] = saved) => saveStops(trip.id, [...nextRoute, ...nextSaved]).then(() => mergePlaces())
 
   // 在路线里移动
   const move = (i: number, dir: -1 | 1) => {
@@ -122,8 +131,15 @@ export default function PlanPage() {
   const remove = (s: Stop) => {
     // 这个城市的酒店景点数量
     const n = data.places.filter((p) => p.stopId === s.id).length
-    // 确认
-    if (!window.confirm(`彻底删除「${s.name}」？${n > 0 ? `它的 ${n} 个酒店/景点也会删除。` : ''}如果只是这次不去，可以用「移出本次旅行」。`)) return
+    // 这个城市的照片数量
+    const photoCount = photoCounts?.get(s.id) ?? 0
+    // 确认（有照片时特别提醒）
+    if (
+      !window.confirm(
+        `彻底删除「${s.name}」？${n > 0 ? `它的 ${n} 个酒店/景点也会删除。` : ''}${photoCount > 0 ? `相册里的 ${photoCount} 张照片也会删除！` : ''}如果只是这次不去，可以用「移出本次旅行」。`,
+      )
+    )
+      return
     // 路线里的城市：至少保留两个地点
     if (s.kind !== 'saved' && route.length <= 2) {
       window.alert('行程里至少要有两个地点')
@@ -173,9 +189,16 @@ export default function PlanPage() {
       <button aria-label="返回" onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))} className="-ml-3 flex h-11 w-11 items-center justify-center">
         <Icon name="back" size={22} />
       </button>
-      {/* 标题 */}
-      <div className="font-serif text-[16px] italic text-muted">Ce voyage</div>
-      <h1 className="text-[28px] font-semibold">本次旅行</h1>
+      {/* 标题 + 切换旅行 */}
+      <div className="flex items-end justify-between gap-2">
+        <div>
+          <div className="font-serif text-[16px] italic text-muted">Ce voyage</div>
+          <h1 className="text-[28px] font-semibold">本次旅行</h1>
+        </div>
+        <Link to="/trips" className="mb-1 flex h-9 shrink-0 items-center gap-1 rounded-full border border-line-strong px-3 text-[12px]">
+          切换 / 新建旅行
+        </Link>
+      </div>
       {/* 名称和日期范围 */}
       <p className="mt-1 text-[14px] text-muted">
         {trip.name} · {first?.date && last?.date ? `${dayLabel(first)} — ${dayLabel(last)}` : '日期待定'} · 共 {itin.total} 天
@@ -262,6 +285,24 @@ export default function PlanPage() {
           )
         })}
       </ol>
+
+      {/* 还没有住宿城市：提示怎么开始 */}
+      {!route.some((s) => s.kind === 'stay') && (
+        <p className="mt-3 rounded-2xl bg-accent-soft px-4 py-3 text-[13px] leading-relaxed text-accent">
+          还没有目的地。点下面的「添加目的地」，按时间顺序一个一个加城市（例如 Milano → Firenze → Roma），每个城市选「住宿城市」、填住几晚。要经过的机场可以选「只是路过」。
+        </p>
+      )}
+
+      {/* 旅行手册 */}
+      {route.some((s) => s.kind === 'stay') && (
+        <Link to="/carnet" className="mt-3 flex items-center justify-between rounded-2xl bg-ink px-4 py-3 text-paper">
+          <span>
+            <span className="block text-[14px] font-semibold">生成旅行手册</span>
+            <span className="block text-[12px] opacity-75">机票、住宿、每天的安排、景点、照片，一页看完</span>
+          </span>
+          <Icon name="chevronRight" size={16} />
+        </Link>
+      )}
 
       {/* 添加目的地 */}
       <button onClick={() => setStopForm({ stop: null, kind: 'stay' })} className="mt-3 flex h-12 w-full items-center justify-center gap-1.5 rounded-2xl border border-dashed border-line-strong text-[14px]">

@@ -12,13 +12,14 @@ import { ACTIVE_TRIP_KEY, db } from './db'
 import { computeDays, getTodayState, totalDays } from '../lib/itinerary'
 
 // 读取当前旅行的全部数据（加载中返回 undefined，没有旅行返回 null）
-export function useTripData() {
+// forTripId：指定读哪次旅行（例如在城市页看以前旅行的城市）；不传就读“当前旅行”
+export function useTripData(forTripId?: string) {
   // 实时查询：任何相关表变化时都会重新执行
   return useLiveQuery(async () => {
     // 读取“当前旅行”设置
     const setting = await db.settings.get(ACTIVE_TRIP_KEY)
-    // 设置里有就用设置里的，否则取第一个旅行
-    const tripId = (setting?.value as string | undefined) ?? (await db.trips.toCollection().first())?.id
+    // 指定的优先，其次设置里的，否则取第一个旅行
+    const tripId = forTripId ?? (setting?.value as string | undefined) ?? (await db.trips.toCollection().first())?.id
     // 一个旅行都没有
     if (!tripId) return null
     // 同时读取这次旅行的各类数据
@@ -42,7 +43,13 @@ export function useTripData() {
     if (!trip) return null
     // 返回所有数据
     return { trip, stops, segments, places, dayPlans, tickets, expenses }
-  })
+  }, [forTripId])
+}
+
+// 读取“当前旅行”的 ID
+export function useActiveTripId() {
+  // 实时查询设置
+  return useLiveQuery(async () => ((await db.settings.get(ACTIVE_TRIP_KEY))?.value as string | undefined) ?? (await db.trips.toCollection().first())?.id)
 }
 
 // 行程数据的类型（从上面的钩子推导出来）
