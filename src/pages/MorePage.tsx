@@ -50,14 +50,14 @@ export default function MorePage() {
       {/* 标题 */}
       <h1 className="mt-1 text-[28px] font-semibold">更多</h1>
 
-      {/* 编辑行程入口 */}
+      {/* 本次旅行入口 */}
       <Link to="/trip" className="mt-5 flex items-center justify-between rounded-2xl border border-line bg-card p-4">
         <span className="flex items-center gap-2 text-[15px] font-semibold">
-          <Icon name="edit" size={17} />
-          编辑行程
+          <Icon name="trip" size={17} />
+          本次旅行
         </span>
         <span className="flex items-center gap-1 text-[12px] text-muted">
-          日期 · 城市 · 交通
+          目的地 · 机票 · 住宿
           <Icon name="chevronRight" size={15} />
         </span>
       </Link>

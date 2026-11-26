@@ -28,7 +28,9 @@ import { useGeolocation } from '../lib/useGeolocation'
 // 引入地理工具
 import { boundsOf, type LngLat } from '../lib/geo'
 // 引入行程工具
-import { computeSpans, dayLabel } from '../lib/itinerary'
+import { computeSpans, dayLabel, routeStops } from '../lib/itinerary'
+// 引入国名
+import { countryLocalUpper } from '../lib/countries'
 // 引入图标
 import { Icon } from '../components/Icon'
 // 引入地图按钮
@@ -63,8 +65,8 @@ export default function HomePage() {
   // 是否已经对准过路线（只在第一次自动对准）
   const fittedRef = useRef(false)
 
-  // 城市列表（去重）
-  const cities = useMemo(() => (data ? uniqueCities(data.stops) : []), [data])
+  // 本次路线上的城市（去重；“以后想去”的城市不显示在路线地图上）
+  const cities = useMemo(() => (data ? uniqueCities(routeStops(data.stops)) : []), [data])
   // 住宿城市及其天数
   const spans = useMemo(() => (data ? computeSpans(data.stops).filter((s) => s.stop.kind === 'stay') : []), [data])
   // 需要金色标记的景点
@@ -75,7 +77,7 @@ export default function HomePage() {
     // 底部卡片的高度
     const sheetH = sheetRef.current?.offsetHeight ?? 220
     // 返回留白
-    return { top: 140, bottom: sheetH + 24, left: 36, right: 76 }
+    return { top: 140, bottom: sheetH + 24, left: 36, right: 120 }
   }, [])
 
   // 回到全览：显示整条路线，平面、正北
@@ -304,7 +306,7 @@ export default function HomePage() {
             <div className="flex items-end justify-between gap-3">
               <div className="min-w-0">
                 {/* 国家代码 */}
-                <div className="text-[11px] tracking-[0.14em] text-muted">{COUNTRY[focused.country] ?? focused.country}</div>
+                <div className="text-[11px] tracking-[0.14em] text-muted">{countryLocalUpper(focused.country)}</div>
                 {/* 城市名（当地原文，衬线大字） */}
                 <h1 className="font-serif text-[34px] leading-none font-medium">{focused.name}</h1>
                 {/* 中文名和住几晚 */}
@@ -351,10 +353,10 @@ export default function HomePage() {
                 {/* 日期范围或待定提示 */}
                 <div className="mt-0.5 text-[12px] text-muted">{dateRange(itin.days, data.trip.startDateHint)}</div>
               </div>
-              {/* 编辑行程 */}
-              <Link to="/trip" className="flex h-10 shrink-0 items-center gap-1 rounded-full border border-line-strong px-3.5 text-[13px]">
-                <Icon name="edit" size={14} />
-                编辑
+              {/* 本次旅行：安排目的地、机票、住宿 */}
+              <Link to="/trip" className="flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-ink px-4 text-[13px] text-paper">
+                <Icon name="trip" size={14} />
+                本次旅行
               </Link>
             </div>
             {/* 展开时显示城市卡片 */}
@@ -401,8 +403,6 @@ export default function HomePage() {
   )
 }
 
-// 国家代码 → 当地语言的国名
-const COUNTRY: Record<string, string> = { NL: 'NEDERLAND', DE: 'DEUTSCHLAND', DK: 'DANMARK' }
 
 // 一组点的中心
 function centerOf(pts: LngLat[]): LngLat {

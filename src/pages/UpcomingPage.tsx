@@ -45,8 +45,8 @@ export default function UpcomingPage() {
     const cur = itin.days[itin.todayIndex - 1]?.stop
     // 它的顺序号
     const fromOrder = cur?.order ?? 0
-    // 从这个城市开始的地点
-    const stops = data.stops.filter((s) => s.order >= fromOrder)
+    // 从这个城市开始、本次路线上的地点（“以后想去”的不算）
+    const stops = data.stops.filter((s) => s.kind !== 'saved' && s.order >= fromOrder)
     // 这些地点的 ID
     const ids = new Set(stops.map((s) => s.id))
     // 出发地在其中的交通段

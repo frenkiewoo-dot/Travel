@@ -36,6 +36,8 @@ import { Sheet, TEXTAREA } from '../components/Sheet'
 import { MapButtons } from '../components/MapButtons'
 // 引入加载画面
 import { Loading } from './HomePage'
+// 引入国名
+import { countryLocalUpper } from '../lib/countries'
 
 // 标签
 type Tab = 'hotel' | 'spots' | 'plan' | 'transport' | 'map'
@@ -48,8 +50,6 @@ const TABS: { value: Tab; label: string }[] = [
   { value: 'map', label: '地图' },
 ]
 
-// 国家代码 → 当地语言的国名
-const COUNTRY: Record<string, string> = { NL: 'NEDERLAND', DE: 'DEUTSCHLAND', DK: 'DANMARK', SE: 'SVERIGE', BE: 'BELGIË', FR: 'FRANCE', AT: 'ÖSTERREICH', CZ: 'ČESKO', PL: 'POLSKA' }
 
 // 状态排序：已预订 → 已选定 → 候选
 const STATUS_ORDER = { booked: 0, selected: 1, candidate: 2 } as const
@@ -105,7 +105,7 @@ export default function CityPage() {
   // 加载中
   if (!data || !itin) return <Loading />
   // 找不到这个城市（例如被删了）
-  if (!stop || !span)
+  if (!stop)
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 bg-paper">
         <p className="text-muted">找不到这个城市</p>
@@ -129,8 +129,8 @@ export default function CityPage() {
   const hiddenCount = hotels.filter((h) => h.hidden).length
   // 列表里要显示的酒店
   const shownHotels = hotels.filter((h) => showHidden || !h.hidden)
-  // 这个城市的天（到达日到离开日）
-  const cityDays = itin.days.filter((d) => d.dayIndex >= span.arriveDay && d.dayIndex <= span.departDay)
+  // 这个城市的天（到达日到离开日；“以后想去”的城市没有）
+  const cityDays = span ? itin.days.filter((d) => d.dayIndex >= span.arriveDay && d.dayIndex <= span.departDay) : []
   // 和这个城市有关的交通（到达和离开）
   const segs = data.segments.filter((s) => s.toStopId === stop.id || s.fromStopId === stop.id)
 
@@ -146,11 +146,11 @@ export default function CityPage() {
     },
   })
 
-  // 日期范围文字
-  const first = itin.days[span.arriveDay - 1]
-  const last = itin.days[span.departDay - 1]
+  // 日期范围文字（“以后想去”的城市显示“以后去”）
+  const first = span ? itin.days[span.arriveDay - 1] : undefined
+  const last = span ? itin.days[span.departDay - 1] : undefined
   // 有日期就显示日期，否则显示第几天
-  const rangeText = first?.date && last?.date ? `${dayLabel(first)} — ${dayLabel(last)}` : `第 ${span.arriveDay}–${span.departDay} 天`
+  const rangeText = !span ? '以后去 · 不在本次旅行里' : first?.date && last?.date ? `${dayLabel(first)} — ${dayLabel(last)}` : `第 ${span.arriveDay}–${span.departDay} 天`
 
   // 页面内容
   return (
@@ -162,7 +162,7 @@ export default function CityPage() {
           <Icon name="back" size={22} />
         </button>
         {/* 国家 */}
-        <div className="text-[11px] tracking-[0.16em] text-muted">{COUNTRY[stop.country] ?? stop.country}</div>
+        <div className="text-[11px] tracking-[0.16em] text-muted">{countryLocalUpper(stop.country)}</div>
         {/* 城市名 */}
         <h1 className="font-serif text-[46px] leading-none font-medium">{stop.name}</h1>
         {/* 中文名、日期、住几晚 */}
@@ -265,6 +265,15 @@ export default function CityPage() {
           {/* ===== 日程 ===== */}
           {tab === 'plan' && (
             <div className="flex flex-col gap-2.5">
+              {/* 以后想去的城市：没有日程 */}
+              {!span && (
+                <p className="rounded-2xl bg-oat p-4 text-[13px] leading-relaxed text-muted">
+                  这个城市不在本次旅行里。在「本次旅行」里把它加进来后，这里会显示每天的安排。
+                  <Link to="/trip" className="mt-2 block text-accent underline underline-offset-2">
+                    去本次旅行
+                  </Link>
+                </p>
+              )}
               {cityDays.map((d) => {
                 // 这天的日程
                 const plan = data.dayPlans.find((p) => p.dayIndex === d.dayIndex)
@@ -290,7 +299,7 @@ export default function CityPage() {
                   </Link>
                 )
               })}
-              <p className="mt-1 text-[12px] leading-relaxed text-muted">在「景点」里点开一个地点，按「加入日程」就能放进某一天。</p>
+              {span && <p className="mt-1 text-[12px] leading-relaxed text-muted">在「景点」里点开一个地点，按「加入日程」就能放进某一天。</p>}
             </div>
           )}
 

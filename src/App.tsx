@@ -17,7 +17,8 @@ import ComingSoon from './pages/ComingSoon'
 import MapPage from './pages/MapPage'
 import NavPage from './pages/NavPage'
 import CityPage from './pages/CityPage'
-import TripEditPage from './pages/TripEditPage'
+import PlanPage from './pages/PlanPage'
+import CitiesPage from './pages/CitiesPage'
 import SegmentPage from './pages/SegmentPage'
 import TicketsPage from './pages/TicketsPage'
 import TicketPage from './pages/TicketPage'
@@ -56,8 +57,10 @@ function Shell() {
             <Route path="/city/:id" element={<CityPage />} />
             {/* 城际交通详情 */}
             <Route path="/segment/:id" element={<SegmentPage />} />
-            {/* 编辑行程 */}
-            <Route path="/trip" element={<TripEditPage />} />
+            {/* 本次旅行 */}
+            <Route path="/trip" element={<PlanPage />} />
+            {/* 城市 */}
+            <Route path="/cities" element={<CitiesPage />} />
             {/* 未来旅程 */}
             <Route path="/upcoming" element={<UpcomingPage />} />
             {/* 地图：搜索、图钉、路线 */}
