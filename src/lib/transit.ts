@@ -98,3 +98,135 @@ export function departureTime(date: string | null, time?: string): string {
   // 拼成带时区的时间
   return `${d}T${time ?? '10:00'}:00+01:00`
 }
+
+// ---------- 查路线（城市详情「交通」里的搜索） ----------
+
+// 路线里的一段
+export interface PlanLeg {
+  // 交通方式（Transitous 的类型，例如 SUBWAY、BUS、REGIONAL_RAIL、HIGHSPEED_RAIL、WALK）
+  mode: string
+  // 线路号，例如 “M3”“RE51”“FR 9527”
+  line?: string
+  // 运营商，例如 “ATM”“Trenord”“TRENITALIA”
+  agency?: string
+  // 开往哪里（方向）
+  headsign?: string
+  // 上车站 / 下车站
+  from: string
+  to: string
+  // 出发 / 到达时间（ISO）
+  dep: string
+  arr: string
+  // 用时（秒）
+  duration: number
+}
+
+// 一个方案
+export interface PlanOption {
+  // 总用时（秒）
+  duration: number
+  // 出发 / 到达（ISO）
+  dep: string
+  arr: string
+  // 换乘次数
+  transfers: number
+  // 每一段
+  legs: PlanLeg[]
+}
+
+// Transitous 返回的一段（完整一点的字段）
+interface MotisFullLeg {
+  mode: string
+  routeShortName?: string
+  agencyName?: string
+  headsign?: string
+  from?: { name?: string }
+  to?: { name?: string }
+  startTime: string
+  endTime: string
+  duration: number
+}
+
+// 查两地之间的公共交通方案（市内、机场进城、城市之间的火车都可以）；when = 出发时间（ISO）
+export async function planRoutes(a: { lat: number; lng: number }, b: { lat: number; lng: number }, when?: string): Promise<PlanOption[]> {
+  // 请求参数（Transitous 用“纬度,经度”）
+  const q = new URLSearchParams({ fromPlace: `${a.lat},${a.lng}`, toPlace: `${b.lat},${b.lng}` })
+  if (when) q.set('time', when)
+  // 15 秒超时
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), 15000)
+  try {
+    const res = await fetch(`${API}?${q}`, { signal: ctrl.signal })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const data = (await res.json()) as { itineraries?: { duration: number; startTime: string; endTime: string; transfers: number; legs: MotisFullLeg[] }[] }
+    // 转换；只要真正坐了车的方案
+    return (data.itineraries ?? [])
+      .filter((it) => it.legs.some((l) => l.mode !== 'WALK'))
+      .slice(0, 6)
+      .map((it) => ({
+        duration: it.duration,
+        dep: it.startTime,
+        arr: it.endTime,
+        transfers: it.transfers,
+        legs: it.legs.map((l) => ({
+          mode: l.mode,
+          line: l.routeShortName || undefined,
+          agency: l.agencyName || undefined,
+          headsign: l.headsign || undefined,
+          from: cleanStop(l.from?.name),
+          to: cleanStop(l.to?.name),
+          dep: l.startTime,
+          arr: l.endTime,
+          duration: l.duration,
+        })),
+      }))
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+// 站名整理：START / END 是起点终点（不是真的站名）
+function cleanStop(name?: string): string {
+  if (!name || name === 'START') return '出发地'
+  if (name === 'END') return '目的地'
+  return name
+}
+
+// 交通方式的中文
+export function modeZh(mode: string): string {
+  return (
+    {
+      WALK: '步行',
+      BUS: '公交',
+      COACH: '大巴',
+      TRAM: '电车',
+      SUBWAY: '地铁',
+      METRO: '地铁',
+      SUBURBAN: '城铁',
+      RAIL: '火车',
+      REGIONAL_RAIL: '大区火车',
+      REGIONAL_FAST_RAIL: '大区快车',
+      LONG_DISTANCE: '长途火车',
+      HIGHSPEED_RAIL: '高铁',
+      NIGHT_RAIL: '夜车',
+      FERRY: '渡轮',
+      AIRPLANE: '飞机',
+      FUNICULAR: '缆车',
+      AERIAL_LIFT: '索道',
+    } as Record<string, string>
+  )[mode] ?? mode
+}
+
+// 交通方式的图标名
+export function modeIcon(mode: string): 'walk' | 'bus' | 'train' | 'plane' {
+  if (mode === 'WALK') return 'walk'
+  if (mode === 'BUS' || mode === 'COACH' || mode === 'FERRY') return 'bus'
+  if (mode === 'AIRPLANE') return 'plane'
+  return 'train'
+}
+
+// ISO 时间 → “09:10”（手机当地时间）
+export function hhmm(iso: string): string {
+  const d = new Date(iso)
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })
+}

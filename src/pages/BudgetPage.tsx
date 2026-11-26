@@ -18,7 +18,9 @@ import { updateTrip } from '../db/trip'
 // 引入行程工具
 import { toISODate } from '../lib/itinerary'
 // 引入货币工具
-import { CATEGORIES, CATEGORY, COUNTRY_CURRENCY, CURRENCIES, CURRENCY_ZH, DEFAULT_RATES, expenseEUR, formatEUR, formatMoney, setRate, useRates } from '../lib/money'
+import { CATEGORIES, CATEGORY, COUNTRY_CURRENCY, expenseEUR, formatEUR, formatMoney, useRates } from '../lib/money'
+// 引入汇率换算表
+import { CurrencyTable } from '../components/CurrencyTable'
 // 引入组件
 import { Icon } from '../components/Icon'
 import { Meter } from '../components/Meter'
@@ -207,35 +209,8 @@ export default function BudgetPage() {
         )
       })}
 
-      {/* ===== 汇率 ===== */}
-      <section className="mt-6 rounded-2xl border border-line bg-card p-4">
-        <h2 className="text-[15px] font-semibold">汇率（1 欧元 = ）</h2>
-        <p className="mt-1 text-[12px] leading-relaxed text-muted">丹麦克朗和欧元挂钩，基本不变；瑞典、挪威克朗是 2026 年 11 月的大约值，出发前可以按银行或 XE 的汇率改一下。</p>
-        <div className="mt-2 flex flex-col gap-2">
-          {CURRENCIES.filter((c) => c !== 'EUR').map((c) => (
-            <label key={c} className="flex items-center gap-3">
-              {/* 币种 */}
-              <span className="w-28 text-[14px]">
-                {c} <span className="text-[12px] text-muted">{CURRENCY_ZH[c]}</span>
-              </span>
-              {/* 汇率（离开输入框时保存） */}
-              <input
-                inputMode="decimal"
-                defaultValue={String(rates[c])}
-                key={`${c}-${rates[c]}`}
-                onBlur={(e) => setRate(c, Number(e.target.value.replace(',', '.')))}
-                className={`${INPUT} h-10 flex-1`}
-              />
-              {/* 恢复默认 */}
-              {rates[c] !== DEFAULT_RATES[c] && (
-                <button type="button" onClick={() => setRate(c, DEFAULT_RATES[c])} className="shrink-0 text-[12px] text-muted underline">
-                  默认
-                </button>
-              )}
-            </label>
-          ))}
-        </div>
-      </section>
+      {/* ===== 汇率换算 ===== */}
+      <CurrencyTable />
 
       {/* ===== 记一笔（右下角浮动按钮） ===== */}
       <button

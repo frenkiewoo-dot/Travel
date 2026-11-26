@@ -36,6 +36,8 @@ export interface Trip {
   createdAt: number
   // 最后修改时间
   updatedAt: number
+  // 删除时间（放进「已删除的旅行」，可以恢复；没有 = 正常的旅行）
+  deletedAt?: number
 }
 
 // ---------- 行程中的地点（城市 / 中转 / 家） ----------
@@ -74,6 +76,26 @@ export interface Stop {
   coverPhotoId?: ID
   // 相册里每一章写的一句话（键是章节：'place:地点ID' 或 'day:2026-12-21'）
   albumNotes?: Record<string, string>
+  // 我的交通：在「交通」里查好、存下来的路线（顺序可以拖动调整）
+  routes?: SavedRoute[]
+}
+
+// 存下来的一条路线（例如 机场 → 青旅）
+export interface SavedRoute {
+  // 唯一 ID
+  id: ID
+  // 起点 / 终点
+  from: { name: string; lat: number; lng: number }
+  to: { name: string; lat: number; lng: number }
+  // 总用时（秒）、出发 / 到达（ISO）、换乘次数
+  duration: number
+  dep: string
+  arr: string
+  transfers: number
+  // 每一段：方式、线路、运营商、方向、上下车站、时间
+  legs: { mode: string; line?: string; agency?: string; headsign?: string; from: string; to: string; dep: string; arr: string; duration: number }[]
+  // 备注
+  note?: string
 }
 
 // ---------- 市内交通指南 ----------
@@ -85,11 +107,15 @@ export interface CityGuide {
   // 推荐 App
   apps: { name: string; use: string; url?: string }[]
   // 到达的地方（车站、机场、大巴站）以及怎么进城
-  arrivals: { name: string; nameZh: string; lat: number; lng: number; how: string }[]
+  arrivals: { name: string; nameZh: string; lat: number; lng: number; how: string; type?: 'airport' | 'station' | 'bus' }[]
+  // 车票在哪里买（例如 售票机、烟草店、官方 App）
+  buy?: string[]
   // 小贴士
   tips: string[]
-  // 节日提醒（12/24–26）
+  // 节日提醒（12/24–26 或这个国家的公共假日）
   holidayNotes: string[]
+  // 节日提醒的标题（不填就是「圣诞期间」）
+  holidayTitle?: string
   // 信息来源
   sources: { label: string; url: string }[]
   // 调研时间，例如 “2026 年 11 月”
@@ -300,7 +326,8 @@ export interface TicketFile {
 // ---------- 预算 ----------
 
 // 支持的货币
-export type Currency = 'EUR' | 'DKK' | 'SEK' | 'NOK'
+// 货币代码（ISO 4217，例如 EUR、DKK、CNY、USD；可以在预算页添加更多货币）
+export type Currency = string
 
 // 花费分类：交通 / 住宿 / 餐饮 / 门票 / 购物 / 其他
 export type ExpenseCategory = 'transport' | 'lodging' | 'food' | 'tickets' | 'shopping' | 'other'

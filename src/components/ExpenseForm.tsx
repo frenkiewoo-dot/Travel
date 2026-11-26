@@ -12,10 +12,10 @@ import { newId } from '../db/pins'
 // 引入数据结构
 import type { Currency, Expense, ExpenseCategory } from '../db/schema'
 // 引入货币工具
-import { CATEGORIES, CATEGORY, CURRENCIES, formatMoney, toEUR, useRates } from '../lib/money'
+import { CATEGORIES, CATEGORY, CURRENCY_ZH, formatMoney, toEUR, useFx } from '../lib/money'
 // 引入组件
 import { Icon } from './Icon'
-import { Field, INPUT, Segmented, Sheet } from './Sheet'
+import { Field, INPUT, Sheet } from './Sheet'
 
 // 表单组件
 export function ExpenseForm({
@@ -48,8 +48,10 @@ export function ExpenseForm({
   const [date, setDate] = useState(initial?.date ?? defaultDate)
   // 出错
   const [error, setError] = useState<string | null>(null)
-  // 汇率
-  const rates = useRates()
+  // 汇率和换算表里的货币
+  const { rates, list } = useFx()
+  // 可以选的币种：换算表里的 + 欧元 + 默认（当地）货币 + 这一笔原来的币种
+  const options = [...new Set(['EUR', ...list, defaultCurrency, initial?.currency].filter((c): c is string => !!c))]
 
   // 解析金额（支持逗号小数点，例如 12,50）
   const value = Number(amount.replace(',', '.'))
@@ -133,7 +135,22 @@ export function ExpenseForm({
 
       {/* 币种 */}
       <Field label="币种" group>
-        <Segmented label="币种" value={currency} options={CURRENCIES.map((c) => ({ value: c, label: c }))} onChange={setCurrency} />
+        <div role="radiogroup" aria-label="币种" className="flex flex-wrap gap-1.5">
+          {options.map((c) => (
+            <button
+              key={c}
+              type="button"
+              role="radio"
+              aria-checked={currency === c}
+              onClick={() => setCurrency(c)}
+              className={`h-10 rounded-xl px-3 text-[13px] ${currency === c ? 'bg-ink font-medium text-paper' : 'bg-oat text-ink'}`}
+            >
+              {c}
+              <span className={`ml-1 text-[11px] ${currency === c ? 'opacity-75' : 'text-muted'}`}>{CURRENCY_ZH[c] ?? ''}</span>
+            </button>
+          ))}
+        </div>
+        <p className="mt-1 text-[11px] text-muted">想要别的货币：在预算页的「汇率换算」里添加</p>
       </Field>
 
       {/* 分类 */}

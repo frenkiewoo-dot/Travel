@@ -1,6 +1,6 @@
 // ============================================================
 // 城市详情页（/city/城市ID）
-//   标签：酒店 / 景点 / 日程 / 交通 / 地图 / 相册
+//   标签：酒店 / 景点 / 日程 / 交通 / 地图 / 相册 / 天气
 //   - 可以打开任何一次旅行里的城市（例如在「城市」里点以前去过的城市看相册）
 //   - 酒店、景点：可以自己添加、编辑、删除，状态：候选 / 已选定 / 已预订
 //   - 酒店选定一个后，可以一键隐藏或删除其余候选
@@ -12,7 +12,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 // 引入路由工具
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 // 引入数据钩子
-import { useActiveTripId, useItinerary, useTripData } from '../db/hooks'
+import { useActiveTripId, useItinerary, useTripData, type TripData } from '../db/hooks'
 // 引入数据库（查这个城市属于哪次旅行）
 import { db } from '../db/db'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -20,12 +20,18 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { setActiveTrip } from '../db/trip'
 // 引入相册
 import { Album } from '../components/Album'
+// 引入天气
+import { WeatherView } from '../components/WeatherView'
+// 引入市内交通（你可能感兴趣、查路线、我的交通）
+import { CityTransport } from '../components/CityTransport'
+// 引入按位置找交通指南
+import { guideFor } from '../data/content'
 // 引入数据结构
 import type { Place, PlaceCategory, Segment, Stop } from '../db/schema'
 // 引入数据操作
 import { addPlaceToDay, deleteCandidateHotels, setOtherHotelsHidden, updateStop } from '../db/trip'
 // 引入行程工具
-import { MODE_LABEL, computeSpans, dayLabel } from '../lib/itinerary'
+import { MODE_LABEL, computeSpans, dayLabel, type DayInfo } from '../lib/itinerary'
 // 引入地理工具
 import { boundsOf, type LngLat } from '../lib/geo'
 // 引入 Google Maps 链接
@@ -48,7 +54,7 @@ import { Loading } from './HomePage'
 import { countryLocalUpper } from '../lib/countries'
 
 // 标签
-type Tab = 'hotel' | 'spots' | 'plan' | 'transport' | 'map' | 'album'
+type Tab = 'hotel' | 'spots' | 'plan' | 'transport' | 'map' | 'album' | 'weather'
 // 标签列表
 const TABS: { value: Tab; label: string }[] = [
   { value: 'hotel', label: '酒店' },
@@ -57,6 +63,7 @@ const TABS: { value: Tab; label: string }[] = [
   { value: 'transport', label: '交通' },
   { value: 'map', label: '地图' },
   { value: 'album', label: '相册' },
+  { value: 'weather', label: '天气' },
 ]
 
 
@@ -200,7 +207,7 @@ export default function CityPage() {
               role="tab"
               aria-selected={tab === t.value}
               onClick={() => setTab(t.value)}
-              className={`h-9 flex-1 rounded-xl text-[13px] ${tab === t.value ? 'bg-card font-medium text-ink shadow-sm' : 'text-muted'}`}
+              className={`h-9 min-w-0 flex-1 rounded-xl px-0 text-[13px] ${tab === t.value ? 'bg-card font-medium text-ink shadow-sm' : 'text-muted'}`}
             >
               {t.label}
             </button>
@@ -222,6 +229,9 @@ export default function CityPage() {
         />
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto px-5 pt-4 pb-8">
+          {/* ===== 天气 ===== */}
+          {tab === 'weather' && <WeatherView stop={stop} stayDates={cityDays.map((d) => d.date).filter((d): d is string => !!d)} />}
+
           {/* ===== 相册 ===== */}
           {tab === 'album' && <Album stop={stop} tripId={data.trip.id} places={places} onToast={setToast} />}
 
@@ -355,7 +365,7 @@ export default function CityPage() {
                 )
               })}
               {/* 市内交通指南 */}
-              <CityGuideView stop={stop} hotel={chosenHotel ?? null} />
+              <CityGuideView stop={stop} hotel={chosenHotel ?? null} data={data} cityDays={cityDays} />
             </div>
           )}
         </div>
@@ -564,15 +574,15 @@ function CityMap({ places, center, focusId, onOpen }: { places: Place[]; center:
 }
 
 // 市内交通指南：车票、App、到了以后怎么走、节日提醒、我的笔记、来源
-function CityGuideView({ stop, hotel }: { stop: Stop; hotel: Place | null }) {
-  // 指南（推荐内容）
-  const g = stop.guide
+function CityGuideView({ stop, hotel, data, cityDays }: { stop: Stop; hotel: Place | null; data: TripData; cityDays: DayInfo[] }) {
+  // 指南（推荐内容）：初始行程存在城市上；其他旅行按位置找（例如米兰、佛罗伦萨、罗马）
+  const g = stop.guide ?? guideFor(stop)
   // 返回
   return (
     <div className="mt-2 flex flex-col gap-3">
       {/* 节日提醒（最重要，放最前面） */}
       {g && g.holidayNotes.length > 0 && (
-        <GuideSection title="圣诞期间" icon="alert" accent>
+        <GuideSection title={g.holidayTitle ?? '圣诞期间'} icon="alert" accent>
           <ul className="flex flex-col gap-1.5">
             {g.holidayNotes.map((t) => (
               <li key={t} className="text-[13px] leading-relaxed">
@@ -582,6 +592,9 @@ function CityGuideView({ stop, hotel }: { stop: Stop; hotel: Place | null }) {
           </ul>
         </GuideSection>
       )}
+
+      {/* 你可能感兴趣、查路线、我的交通 */}
+      <CityTransport stop={stop} data={data} hotel={hotel} cityDays={cityDays} />
 
       {/* 到了以后怎么走 */}
       {g && g.arrivals.length > 0 && (
@@ -627,6 +640,17 @@ function CityGuideView({ stop, hotel }: { stop: Stop; hotel: Place | null }) {
               </li>
             ))}
           </ul>
+          {/* 在哪里买 */}
+          {g.buy && g.buy.length > 0 && (
+            <div className="mt-3 rounded-xl bg-oat px-3 py-2.5">
+              <div className="text-[12px] font-semibold">在哪里买</div>
+              <ul className="mt-1 flex list-disc flex-col gap-0.5 pl-4 text-[12px] leading-relaxed">
+                {g.buy.map((b) => (
+                  <li key={b}>{b}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </GuideSection>
       )}
 
@@ -664,8 +688,29 @@ function CityGuideView({ stop, hotel }: { stop: Stop; hotel: Place | null }) {
         </GuideSection>
       )}
 
-      {/* 没有指南 */}
-      {!g && <p className="rounded-2xl bg-oat p-4 text-[13px] leading-relaxed text-muted">这个城市还没有交通指南（推荐内容目前只覆盖原始行程里的城市）。可以在下面记自己的笔记。</p>}
+      {/* 没有整理好的指南：给出查票价和通票的地方 */}
+      {!g && (
+        <GuideSection title="车票和通票" icon="ticket">
+          <p className="text-[13px] leading-relaxed text-muted">这个城市还没有整理好的车票信息。可以在这里查单程票、一日票 / 通票的价格和在哪里买：</p>
+          <div className="mt-2 flex flex-col gap-2">
+            <a href={`https://en.wikivoyage.org/wiki/${encodeURIComponent(stop.name)}#Get_around`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between rounded-xl bg-oat px-3 py-2.5 text-[13px]">
+              <span>
+                Wikivoyage「Get around」
+                <span className="block text-[11px] text-muted">旅行百科：市内交通、车票、机场进城</span>
+              </span>
+              <Icon name="external" size={14} className="text-muted" />
+            </a>
+            <a href={`https://www.google.com/search?q=${encodeURIComponent(`${stop.name} public transport day ticket price where to buy`)}`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between rounded-xl bg-oat px-3 py-2.5 text-[13px]">
+              <span>
+                Google 搜索「{stop.name} 一日票价格」
+                <span className="block text-[11px] text-muted">一般能找到当地公交公司的官网</span>
+              </span>
+              <Icon name="external" size={14} className="text-muted" />
+            </a>
+          </div>
+          <p className="mt-2 text-[12px] leading-relaxed text-muted">想要像米兰、哥本哈根那样整理好的指南（票价、在哪里买、机场怎么进城），可以让 Claude 调研后加进来。查到的信息也可以记在下面的「我的笔记」里。</p>
+        </GuideSection>
+      )}
 
       {/* 我的笔记（离开输入框时保存） */}
       <GuideSection title="我的笔记" icon="edit">

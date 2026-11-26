@@ -14,7 +14,8 @@ import type { CityGuide, Place, Stop, TransportMode, TransportOption } from '../
 // 1 = 第 4 步：城际交通方式、柏林 / 哥本哈根 / 阿姆斯特丹机场指南
 // 2 = 行程变更：改成 哥本哈根 4 晚 + 斯德哥尔摩 4 晚，柏林移到“以后想去”；加斯德哥尔摩、奥斯陆、去程机场指南
 // 3 = 第 7 步：推荐青旅和景点（含圣诞市场、12/24–26 开放情况），城市指南补充节日提醒
-export const CONTENT_VERSION = 3
+// 4 = 城市指南加「在哪里买票」；加米兰、佛罗伦萨、罗马的市内交通指南（按位置对应）
+export const CONTENT_VERSION = 4
 
 // 初始行程的 ID（推荐内容只合并到这个行程里）
 export const NOEL_TRIP_ID = 'trip-noel-2026'
@@ -294,6 +295,7 @@ export const CITY_GUIDES: Record<string, CityGuide> = {
       { name: 'City Pass（24 / 72 小时）', price: '价格需在 DOT App 里确认', note: '时间内不限次数坐公交、地铁、火车，含机场；住 3 晚可以考虑 72 小时版' },
       { name: 'Copenhagen Card', price: '较贵', note: '含交通和很多景点门票，景点去得多才划算' },
     ],
+    buy: ['DOT Tickets App（官方：单程票、City Pass 都能买）', '火车站和地铁站的自动售票机（可以刷卡）', '机场到达大厅的售票机', '7-Eleven 便利店（部分车票，需核实）'],
     apps: [
       { name: 'DOT Tickets', use: '买哥本哈根的公交、地铁、火车票（官方）', url: 'https://dinoffentligetransport.dk/citypass' },
       { name: 'Rejseplanen', use: '丹麦官方查路线 App，能看实时班次', url: 'https://www.rejseplanen.dk' },
@@ -394,6 +396,7 @@ export const CITY_GUIDES: Record<string, CityGuide> = {
       { name: '7 天票', price: '约 SEK 470' },
       { name: '直接刷银行卡', price: '按单程票计价', note: '地铁闸机可以直接刷 Visa / Mastercard（需核实）' },
     ],
+    buy: ['SL App（官方：单程票、24 / 72 小时票）', '直接刷银行卡或手机进站（只能买单程票）', 'SL Center、Pressbyrån、7-Eleven 便利店（需核实）', '中央车站和机场的售票机'],
     apps: [
       { name: 'SL', use: '斯德哥尔摩官方交通 App：买票、查路线', url: 'https://sl.se/en' },
       { name: 'Arlanda Express', use: '机场快线车票', url: 'https://www.arlandaexpress.com/tickets-prices' },
@@ -463,6 +466,133 @@ export const CITY_GUIDES: Record<string, CityGuide> = {
     ],
     updated: '2026 年 11 月',
   },
+}
+
+// ---------- 意大利三城的市内交通指南（第 4 版内容，按位置对应到任何旅行里的米兰、佛罗伦萨、罗马） ----------
+// 意大利的公共假日（写进每个城市的节假日提醒）
+const IT_HOLIDAYS = '意大利公共假日：1/1、1/6、复活节星期一、4/25（解放日）、5/1、6/2、8/15、11/1、12/8、12/25、12/26。假日公交按节假日班次（orario festivo），很多商店关门。'
+// 意大利罢工提醒
+const IT_STRIKE = '意大利公共交通时有罢工（sciopero），通常会提前公布；罢工日一般保留上下班高峰的保障班次。出发前看运营公司的通知。'
+
+export const EXTRA_GUIDES: Record<string, CityGuide> = {
+  // ===== 米兰 =====
+  'city-milano': {
+    tickets: [
+      { name: '单程票（Biglietto ordinario）', price: '€2.20', note: '90 分钟内地铁、公交、电车可以换乘；地铁只能进站一次。' },
+      { name: '24 小时票', price: '€7.60', note: '从第一次刷票开始 24 小时，不限次数。' },
+      { name: '3 天票', price: '€15.50', note: '连续 3 天，到第三天凌晨 3:45。' },
+      { name: '10 次票（Carnet）', price: '约 €19.50', note: '需核实。' },
+      { name: '直接刷银行卡 / 手机', price: '按次扣费，一天封顶', note: '进地铁闸机、上公交电车时刷卡；同一天坐满 4 次后按 24 小时票的价格封顶。每人要用自己的卡。' },
+    ],
+    buy: ['地铁站的自动售票机（可以选英文、能刷卡）', '报刊亭、烟草店（Tabacchi，门口有大写 T 的招牌）', 'ATM Milano 官方 App', '也可以不买票，直接刷银行卡或手机'],
+    apps: [
+      { name: 'ATM Milano', use: '官方：买票、查路线、罢工和停运通知', url: 'https://www.atm.it/en/' },
+      { name: 'Trenord', use: '机场快线 Malpensa Express、大区火车', url: 'https://www.trenord.it/en/' },
+      { name: 'Trenitalia', use: '高铁 Frecciarossa（去佛罗伦萨、罗马）', url: 'https://www.trenitalia.com/en.html' },
+      { name: 'Italo', use: '另一家高铁公司，常有特价', url: 'https://www.italotreno.com/en' },
+    ],
+    arrivals: [
+      { name: 'Milano Malpensa (MXP)', nameZh: '马尔彭萨机场', type: 'airport', lat: 45.627, lng: 8.711, how: 'Malpensa Express 火车到 Milano Cadorna 约 35–40 分钟，到 Milano Centrale 约 50 分钟，单程约 €13–15（需核实）。市内 ATM 车票不能用，要另外买（Trenord 售票机或 App）。也有机场大巴到中央车站，约 50–60 分钟。' },
+      { name: 'Milano Linate (LIN)', nameZh: '利纳特机场', type: 'airport', lat: 45.4519, lng: 9.2767, how: '地铁 M4（蓝线）直达市中心 San Babila，约 15 分钟，用普通 ATM 车票 €2.20。' },
+      { name: 'Bergamo Orio al Serio (BGY)', nameZh: '贝加莫机场', type: 'airport', lat: 45.6689, lng: 9.7004, how: '很多廉航用这个机场，离米兰约 50 公里。机场大巴到 Milano Centrale 约 1 小时（价格需核实）。' },
+      { name: 'Milano Centrale', nameZh: '米兰中央车站', type: 'station', lat: 45.4859, lng: 9.2048, how: '地铁 M2（绿线）、M3（黄线）就在车站下面；去大教堂（Duomo）坐 M3 几站就到。' },
+    ],
+    tips: ['进站和出站都要刷票或刷卡，车票留到出站以后。', '检票员会查票，没票或没打卡会被罚款。', '中央车站和人多的地铁车厢注意小偷。', IT_STRIKE],
+    holidayNotes: [IT_HOLIDAYS],
+    holidayTitle: '节假日',
+    sources: [
+      { label: 'ATM：米兰车票和价格', url: 'https://www.atm.it/en/ViaggiaConNoi/Biglietti/Pages/tickets_milan.aspx' },
+      { label: 'ATM：怎么在米兰坐公共交通', url: 'https://www.atm.it/en/ViaggiaConNoi/Biglietti/Pages/HowtogetaroundMilanbypublictransport.aspx' },
+      { label: 'Trenord：日票', url: 'https://trenord.it/en/tickets/travel-titles/daily-tickets/' },
+      { label: '米兰交通指南（The Better Vacation）', url: 'https://thebettervacation.com/milan/getting-around-milan/' },
+    ],
+    updated: '2026 年 11 月',
+  },
+  // ===== 佛罗伦萨 =====
+  'city-firenze': {
+    tickets: [
+      { name: '单程票', price: '€2.00', note: '90 分钟内公交、电车（T1、T2）可以换乘。2026 年 8 月起从 €1.70 涨到 €2.00（需核实）。' },
+      { name: '上车向司机买', price: '约 €3', note: '更贵，而且不是每条线都卖（需核实），最好提前买。' },
+      { name: '24 小时票', price: '约 €5.50', note: '需核实（来源不一致）。' },
+    ],
+    buy: ['电车站的自动售票机', '报刊亭、烟草店（Tabacchi）', 'at bus 官方 App（Autolinee Toscane）'],
+    apps: [
+      { name: 'at bus', use: 'Autolinee Toscane 官方：买票、查公交电车', url: 'https://www.at-bus.it/en' },
+      { name: 'Trenitalia', use: '火车（去比萨、罗马、米兰）', url: 'https://www.trenitalia.com/en.html' },
+    ],
+    arrivals: [
+      { name: 'Firenze Peretola (FLR)', nameZh: '佛罗伦萨机场', type: 'airport', lat: 43.81, lng: 11.2051, how: '电车 T2 直达市中心 Unità 站（就在 Santa Maria Novella 火车站旁），约 20–25 分钟，用普通车票。' },
+      { name: 'Pisa (PSA)', nameZh: '比萨机场', type: 'airport', lat: 43.6839, lng: 10.3927, how: '坐 Pisa Mover 小火车到 Pisa Centrale，再坐火车到 Firenze S.M.N.，全程约 1–1.5 小时（需核实）。' },
+      { name: 'Firenze Santa Maria Novella', nameZh: '佛罗伦萨新圣母玛利亚车站', type: 'station', lat: 43.7764, lng: 11.248, how: '老城就在旁边，走到大教堂约 10 分钟；电车 T1、T2 都在车站旁。' },
+    ],
+    tips: ['老城很小，大部分景点走路就能到。', '上车后马上打卡，没打卡被查到会罚款（约 €50 起，需核实）。', '老城是限制交通区（ZTL），不要开车进去。', IT_STRIKE],
+    holidayNotes: [IT_HOLIDAYS],
+    holidayTitle: '节假日',
+    sources: [
+      { label: '佛罗伦萨 2026 年公交涨价', url: 'https://www.magentaflorence.com/bus-tram-fares-increase-starting-august-2026/' },
+      { label: '佛罗伦萨电车和机场线', url: 'https://florence-on-line.com/travel-tips/buses/florence-tramvia.html' },
+      { label: 'Visit Tuscany：佛罗伦萨交通', url: 'https://www.visittuscany.com/en/ideas/transportation-in-florence-how-to-move-around/' },
+    ],
+    updated: '2026 年 11 月',
+  },
+  // ===== 罗马 =====
+  'city-roma': {
+    tickets: [
+      { name: 'BIT 单程票', price: '€1.50', note: '100 分钟内公交、电车可以换乘，地铁只能进站一次。' },
+      { name: '24 / 48 / 72 小时票', price: '€8.50 / €15 / €22', note: '2025 年 7 月起的价格。' },
+      { name: '7 天票（CIS）', price: '€29', note: '' },
+      { name: 'Tap & Go（直接刷银行卡 / 手机）', price: '一天最多扣 €8.50', note: '每人一张卡；只能用在市内 ATAC 交通，Leonardo Express 和大区火车不能用。' },
+    ],
+    buy: ['地铁站的自动售票机', '报刊亭、烟草店（Tabacchi）', '也可以不买票，直接刷银行卡或手机（Tap & Go）'],
+    apps: [
+      { name: 'ATAC', use: '罗马公交地铁官方：路线、罢工通知', url: 'https://www.atac.roma.it/en' },
+      { name: 'Trenitalia', use: '机场快线 Leonardo Express、火车', url: 'https://www.trenitalia.com/en.html' },
+      { name: 'Italo', use: '高铁（去佛罗伦萨、米兰）', url: 'https://www.italotreno.com/en' },
+    ],
+    arrivals: [
+      { name: 'Roma Fiumicino (FCO)', nameZh: '菲乌米奇诺机场', type: 'airport', lat: 41.7999, lng: 12.2462, how: 'Leonardo Express 直达 Roma Termini，约 32 分钟，€14（是 Trenitalia 的票，ATAC 车票和 Tap & Go 不能用）。也有更便宜的 FL1 大区火车（不到 Termini，需核实）和机场大巴（约 1 小时）。' },
+      { name: 'Roma Ciampino (CIA)', nameZh: '钱皮诺机场', type: 'airport', lat: 41.7994, lng: 12.5949, how: '很多廉航用这个机场。机场大巴到 Termini 约 40 分钟（价格需核实）。' },
+      { name: 'Roma Termini', nameZh: '罗马中央车站', type: 'station', lat: 41.901, lng: 12.5016, how: '地铁 A、B 线在这里交汇；很多市内公交从站前广场出发。' },
+    ],
+    tips: ['BIT 第一次上车或进站时要打卡，100 分钟内有效。', '地铁只有 A、B、C 三条线，老城很多地方要走路或坐公交。', '人多的公交（例如 64 路）和 Termini 注意小偷。', IT_STRIKE],
+    holidayNotes: [IT_HOLIDAYS],
+    holidayTitle: '节假日',
+    sources: [
+      { label: 'ATAC：新票价', url: 'https://www.atac.roma.it/en/tickets-and-passes/new-tariff-plan-for-metrebus-roma-and-lazio-tourist-tickets' },
+      { label: 'Turismo Roma：7 月 1 日起的新票价', url: 'https://turismoroma.it/en/news/romes-public-transport-new-fares-come-force-1-july' },
+      { label: '罗马交通指南（The Better Vacation）', url: 'https://thebettervacation.com/rome/getting-around-rome/' },
+    ],
+    updated: '2026 年 11 月',
+  },
+}
+
+// 每份指南对应的位置（城市中心或机场）：新建的旅行里，离这个位置近的城市会自动用这份指南
+const GUIDE_CENTERS: { key: string; lat: number; lng: number; radiusKm: number }[] = [
+  { key: 'stop-copenhagen', lat: 55.6761, lng: 12.5683, radiusKm: 20 },
+  { key: 'stop-stockholm', lat: 59.3293, lng: 18.0686, radiusKm: 25 },
+  { key: 'stop-berlin', lat: 52.52, lng: 13.405, radiusKm: 25 },
+  { key: 'stop-ams-out', lat: 52.3105, lng: 4.7683, radiusKm: 5 },
+  { key: 'stop-osl', lat: 60.1939, lng: 11.1004, radiusKm: 5 },
+  { key: 'city-milano', lat: 45.4642, lng: 9.19, radiusKm: 25 },
+  { key: 'city-firenze', lat: 43.7696, lng: 11.2558, radiusKm: 20 },
+  { key: 'city-roma', lat: 41.9028, lng: 12.4964, radiusKm: 25 },
+]
+
+// 给一个城市找交通指南：初始行程按城市 ID，其他旅行按位置（离指南的位置足够近）
+export function guideFor(stop: { id: string; lat: number; lng: number }): CityGuide | undefined {
+  // 按 ID
+  const own = CITY_GUIDES[stop.id] ?? EXTRA_GUIDES[stop.id]
+  if (own) return own
+  // 按位置：最近的、在范围内的
+  let best: { key: string; d: number } | null = null
+  for (const c of GUIDE_CENTERS) {
+    // 粗略距离（公里）
+    const dLat = (stop.lat - c.lat) * 111
+    const dLng = (stop.lng - c.lng) * 111 * Math.cos((c.lat * Math.PI) / 180)
+    const d = Math.hypot(dLat, dLng)
+    if (d <= c.radiusKm && (!best || d < best.d)) best = { key: c.key, d }
+  }
+  return best ? (CITY_GUIDES[best.key] ?? EXTRA_GUIDES[best.key]) : undefined
 }
 
 // ---------- 推荐青旅和景点（第 3 版内容） ----------
