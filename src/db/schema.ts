@@ -6,8 +6,8 @@
 // ============================================================
 
 // 当前数据结构的版本号（导出备份时也会写进文件，导入时用来判断要不要迁移）
-// 版本历史：1 = 初版；2 = 加入票夹（tickets、ticketFiles 两张表）；3 = 加入预算（expenses 表）
-export const SCHEMA_VERSION = 3
+// 版本历史：1 = 初版；2 = 加入票夹（tickets、ticketFiles 两张表）；3 = 加入预算（expenses 表）；4 = 加入相册（photos 表）
+export const SCHEMA_VERSION = 4
 
 // 所有记录的 ID 都是字符串
 export type ID = string
@@ -70,6 +70,10 @@ export interface Stop {
   guide?: CityGuide
   // 我自己记的市内交通笔记
   transportNote?: string
+  // 相册封面照片的 ID（不设就用第一张）
+  coverPhotoId?: ID
+  // 相册里每一章写的一句话（键是章节：'place:地点ID' 或 'day:2026-12-21'）
+  albumNotes?: Record<string, string>
 }
 
 // ---------- 市内交通指南 ----------
@@ -318,6 +322,36 @@ export interface Expense {
   // 备注，例如 “Tivoli 门票”
   note?: string
   // 创建时间
+  createdAt: number
+}
+
+// ---------- 相册 ----------
+
+// 一张照片（只存在手机里，不会上传）
+export interface Photo {
+  // 唯一 ID
+  id: ID
+  // 属于哪次旅行
+  tripId: ID
+  // 属于哪个城市
+  stopId: ID
+  // 归到哪个景点（没有 = 「城市漫步」，按日期分组）
+  placeId?: ID
+  // 大图（长边最多 2048 像素的 JPEG，看大图用）
+  blob: Blob
+  // 小图（长边最多 720 像素，排版用，省内存）
+  thumb: Blob
+  // 大图的宽、高（像素；排版时算比例用，不用等图片加载）
+  width: number
+  height: number
+  // 拍摄时间（当地时间，格式 'YYYY-MM-DDTHH:mm:ss'；照片没记录就用文件时间）
+  takenAt: string
+  // 拍摄位置（照片自带 GPS 信息时才有）
+  lat?: number
+  lng?: number
+  // 一句话说明
+  caption?: string
+  // 添加时间
   createdAt: number
 }
 

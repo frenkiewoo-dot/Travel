@@ -49,6 +49,17 @@ export default function BackupPage() {
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
   // 文件选择框
   const inputRef = useRef<HTMLInputElement>(null)
+  // 是否包含照片
+  const [withPhotos, setWithPhotos] = useState(true)
+  // 照片张数和大约多大（MB）
+  const photoStat = useLiveQuery(async () => {
+    // 所有照片
+    const all = await db.photos.toArray()
+    // 大图 + 小图的字节数，转成 base64 后约大 1/3
+    const bytes = all.reduce((sum, p) => sum + p.blob.size + p.thumb.size, 0) * 1.34
+    // 返回
+    return { count: all.length, mb: bytes / 1024 / 1024 }
+  })
 
   // 导出
   const onExport = async () => {
@@ -57,7 +68,7 @@ export default function BackupPage() {
     setMsg(null)
     try {
       // 生成备份文件
-      const file = await createBackup()
+      const file = await createBackup(withPhotos)
       // 交给用户
       const r = await shareOrDownload(file)
       // 取消了
@@ -123,8 +134,19 @@ export default function BackupPage() {
 
       {/* 说明 */}
       <p className="mt-4 rounded-2xl bg-oat p-4 text-[13px] leading-relaxed text-muted">
-        所有数据（行程、酒店景点、日程、车票图片和 PDF、花费）都只存在这台手机里。换手机、清除 Safari 数据、删掉 App 之前，先导出一份备份。出发前和旅途中每加了新车票，也建议导出一次。
+        所有数据（行程、酒店景点、日程、车票图片和 PDF、花费、相册照片）都只存在这台设备里。换手机、清除 Safari 数据、删掉 App 之前，先导出一份备份。出发前和旅途中每加了新车票，也建议导出一次。
       </p>
+
+      {/* 是否包含照片（有照片时才显示） */}
+      {!!photoStat?.count && (
+        <label className="mt-4 flex items-start gap-3 rounded-2xl border border-line bg-card p-4">
+          <input type="checkbox" checked={withPhotos} onChange={(e) => setWithPhotos(e.target.checked)} className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--ink)]" />
+          <span className="text-[13px] leading-relaxed">
+            <span className="font-medium">包含相册照片</span>（{photoStat.count} 张，约 {photoStat.mb.toFixed(0)} MB）
+            <span className="block text-[12px] text-muted">照片多时文件会很大。不包含照片的备份恢复时，设备里现有的照片保持不动。</span>
+          </span>
+        </label>
+      )}
 
       {/* 导出 */}
       <button onClick={onExport} disabled={!!busy} className="mt-4 flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-ink text-[15px] text-paper disabled:opacity-50">

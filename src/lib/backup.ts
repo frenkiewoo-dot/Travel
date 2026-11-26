@@ -1,7 +1,8 @@
 // ============================================================
 // 导出 / 导入备份
-//   - 导出：把手机里的所有数据（行程、酒店景点、日程、车票和文件、花费、设置）打包成一个 JSON 文件
-//     车票图片和 PDF 会转成文字（base64）放进文件里，所以一个文件就是完整备份
+//   - 导出：把手机里的所有数据（行程、酒店景点、日程、车票和文件、花费、照片、设置）打包成一个 JSON 文件
+//     车票图片、PDF、照片会转成文字（base64）放进文件里，所以一个文件就是完整备份
+//     照片多的话文件会很大，可以选择不包含照片（恢复这种备份时，手机里现有的照片保持不动）
 //   - 导入：读备份文件，确认后替换手机里的全部数据
 //   - 备份里有数据结构版本号，旧版本的备份也能导入（缺的表当作空）
 // ============================================================
@@ -9,7 +10,7 @@
 // 引入数据库
 import { db } from '../db/db'
 // 引入版本号
-import { SCHEMA_VERSION, type TicketFile } from '../db/schema'
+import { SCHEMA_VERSION, type Photo, type TicketFile } from '../db/schema'
 
 // 备份文件里的 App 标识（防止导入别的 JSON）
 const APP_ID = 'noel-travel'
@@ -17,7 +18,7 @@ const APP_ID = 'noel-travel'
 export const LAST_BACKUP_KEY = 'lastBackupAt'
 
 // 要备份的表（路线缓存可以重新算，不备份）
-const TABLES = ['trips', 'stops', 'segments', 'places', 'dayPlans', 'settings', 'tickets', 'ticketFiles', 'expenses'] as const
+const TABLES = ['trips', 'stops', 'segments', 'places', 'dayPlans', 'settings', 'tickets', 'ticketFiles', 'expenses', 'photos'] as const
 // 表名的类型
 type TableName = (typeof TABLES)[number]
 
@@ -29,12 +30,16 @@ interface BackupFile {
   schemaVersion: number
   // 导出时间
   exportedAt: string
+  // 是否包含照片（'excluded' = 导出时选了不包含；旧版备份没有这个字段）
+  photos?: 'included' | 'excluded'
   // 每张表的数据
   tables: Partial<Record<TableName, unknown[]>>
 }
 
 // 车票文件在备份里的样子：blob 换成 dataUrl 文字
 type SerializedFile = Omit<TicketFile, 'blob'> & { dataUrl: string }
+// 照片在备份里的样子：大图和小图都换成 dataUrl 文字
+type SerializedPhoto = Omit<Photo, 'blob' | 'thumb'> & { dataUrl: string; thumbDataUrl: string }
 
 // Blob → data URL 文字
 function blobToDataUrl(blob: Blob): Promise<string> {
@@ -66,30 +71,47 @@ function dataUrlToBlob(url: string): Blob {
   return new Blob([bytes], { type: mime })
 }
 
-// 生成备份文件
-export async function createBackup(): Promise<File> {
-  // 每张表的数据
-  const tables: BackupFile['tables'] = {}
+// 生成备份文件（includePhotos = 是否包含照片）
+export async function createBackup(includePhotos = true): Promise<File> {
+  // 文件内容分成很多小段拼起来（照片多时，拼成一整个超长字符串会占太多内存）
+  const parts: string[] = []
+  // 文件开头：App 标识、版本、时间、是否包含照片
+  const head = { app: APP_ID, schemaVersion: SCHEMA_VERSION, exportedAt: new Date().toISOString(), photos: includePhotos ? 'included' : 'excluded' }
+  parts.push(JSON.stringify(head).slice(0, -1) + ',"tables":{')
   // 逐张表读取
-  for (const name of TABLES) {
+  for (const [ti, name] of TABLES.entries()) {
+    // 不包含照片时跳过照片表
+    if (name === 'photos' && !includePhotos) continue
+    // 表名
+    parts.push(`${ti > 0 ? ',' : ''}${JSON.stringify(name)}:[`)
     // 读出全部记录
     const rows = await db.table(name).toArray()
-    // 车票文件：把 blob 转成文字
-    if (name === 'ticketFiles') {
-      tables[name] = await Promise.all(
-        (rows as TicketFile[]).map(async ({ blob, ...rest }) => ({ ...rest, dataUrl: await blobToDataUrl(blob) }) satisfies SerializedFile),
-      )
-    } else {
-      // 其他表原样保存
-      tables[name] = rows
+    // 逐条写入
+    for (const [i, row] of rows.entries()) {
+      // 记录之间用逗号隔开
+      if (i > 0) parts.push(',')
+      // 车票文件：把 blob 转成文字
+      if (name === 'ticketFiles') {
+        const { blob, ...rest } = row as TicketFile
+        parts.push(JSON.stringify({ ...rest, dataUrl: await blobToDataUrl(blob) } satisfies SerializedFile))
+      } else if (name === 'photos') {
+        // 照片：大图和小图都转成文字
+        const { blob, thumb, ...rest } = row as Photo
+        parts.push(JSON.stringify({ ...rest, dataUrl: await blobToDataUrl(blob), thumbDataUrl: await blobToDataUrl(thumb) } satisfies SerializedPhoto))
+      } else {
+        // 其他表原样保存
+        parts.push(JSON.stringify(row))
+      }
     }
+    // 表结束
+    parts.push(']')
   }
-  // 组装备份
-  const backup: BackupFile = { app: APP_ID, schemaVersion: SCHEMA_VERSION, exportedAt: new Date().toISOString(), tables }
+  // 文件结尾
+  parts.push('}}')
   // 文件名带日期
   const name = `noel-backup-${new Date().toISOString().slice(0, 10)}.json`
   // 生成文件
-  return new File([JSON.stringify(backup)], name, { type: 'application/json' })
+  return new File(parts, name, { type: 'application/json' })
 }
 
 // 把备份交给用户：能用系统分享（iPhone：存储到“文件”、AirDrop、发给自己）就分享，否则直接下载
@@ -149,7 +171,7 @@ export async function readBackup(file: File): Promise<{ backup: BackupFile; summ
   // 导出时间
   const when = new Date(backup.exportedAt).toLocaleString('zh-CN')
   // 拼成一句话
-  const summary = `备份时间：${when}\n${n('trips')} 次旅行、${n('stops')} 个地点、${n('places')} 个酒店景点、${n('tickets')} 张车票（${n('ticketFiles')} 个文件）、${n('expenses')} 笔花费`
+  const summary = `备份时间：${when}\n${n('trips')} 次旅行、${n('stops')} 个地点、${n('places')} 个酒店景点、${n('tickets')} 张车票（${n('ticketFiles')} 个文件）、${n('expenses')} 笔花费、${backup.photos === 'excluded' ? '不含照片（现有照片保持不动）' : `${n('photos')} 张照片`}`
   // 返回
   return { backup, summary }
 }
@@ -160,6 +182,8 @@ export async function restoreBackup(backup: BackupFile): Promise<void> {
   await db.transaction('rw', [...TABLES.map((t) => db.table(t)), db.routeCache], async () => {
     // 逐张表处理
     for (const name of TABLES) {
+      // 导出时选了“不包含照片”：手机里现有的照片保持不动
+      if (name === 'photos' && backup.photos === 'excluded') continue
       // 先清空
       await db.table(name).clear()
       // 备份里的数据（旧版本备份可能没有这张表）
@@ -167,6 +191,9 @@ export async function restoreBackup(backup: BackupFile): Promise<void> {
       // 车票文件：文字转回 Blob
       if (name === 'ticketFiles') {
         await db.ticketFiles.bulkPut((rows as SerializedFile[]).map(({ dataUrl, ...rest }) => ({ ...rest, blob: dataUrlToBlob(dataUrl) })))
+      } else if (name === 'photos') {
+        // 照片：文字转回大图和小图
+        await db.photos.bulkPut((rows as SerializedPhoto[]).map(({ dataUrl, thumbDataUrl, ...rest }) => ({ ...rest, blob: dataUrlToBlob(dataUrl), thumb: dataUrlToBlob(thumbDataUrl) })))
       } else {
         // 其他表原样写入
         await db.table(name).bulkPut(rows)

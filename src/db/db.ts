@@ -6,7 +6,7 @@
 // 引入 Dexie 和它的表类型
 import Dexie, { type EntityTable } from 'dexie'
 // 引入数据结构定义
-import type { DayPlan, Expense, Place, RouteCache, Segment, Setting, Stop, Ticket, TicketFile, Trip } from './schema'
+import type { DayPlan, Expense, Photo, Place, RouteCache, Segment, Setting, Stop, Ticket, TicketFile, Trip } from './schema'
 // 引入初始数据
 import { buildSeed } from './seed'
 
@@ -32,6 +32,8 @@ type TravelDB = Dexie & {
   ticketFiles: EntityTable<TicketFile, 'id'>
   // 花费表（第 3 版加入）
   expenses: EntityTable<Expense, 'id'>
+  // 相册照片
+  photos: EntityTable<Photo, 'id'>
 }
 
 // 创建数据库，名字叫 noel-travel
@@ -87,8 +89,24 @@ db.version(3).stores({
   expenses: 'id, tripId, date',
 })
 
+// 版本 4：加入相册的照片表（只是新增表）
+db.version(4).stores({
+  trips: 'id, updatedAt',
+  stops: 'id, tripId, [tripId+order]',
+  segments: 'id, tripId',
+  places: 'id, tripId, stopId, category',
+  dayPlans: 'id, tripId, [tripId+dayIndex]',
+  routeCache: 'key, savedAt',
+  settings: 'key',
+  tickets: 'id, tripId, segmentId, createdAt',
+  ticketFiles: 'id, ticketId',
+  expenses: 'id, tripId, date',
+  // 照片：按旅行、按城市、按景点、按拍摄时间查
+  photos: 'id, tripId, stopId, placeId, takenAt',
+})
+
 // 以后如果要改已有数据的格式，写法示例：
-// db.version(4).stores({ ...所有表 }).upgrade(async (tx) => { ...把旧数据改成新格式 })
+// db.version(5).stores({ ...所有表 }).upgrade(async (tx) => { ...把旧数据改成新格式 })
 
 // 当前查看的旅行 ID 存在设置表里，用这个名字
 export const ACTIVE_TRIP_KEY = 'activeTripId'
