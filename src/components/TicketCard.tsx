@@ -58,8 +58,12 @@ export function TicketCard({ ticket: t, fallbackDate }: { ticket: Ticket; fallba
   const thumb = useObjectUrl(images[0]?.blob)
   // 是否全屏显示
   const [full, setFull] = useState(false)
-  // 出发时间文字
+  // 是不是住宿凭证
+  const isHotel = !!t.placeId
+  // 出发时间文字（加上到达时间，例如 “12月21日 周一 09:15–10:40”）
   const when = formatDepart(t.departAt)
+  // 到达时间（同一天只显示时分）
+  const arrive = t.arriveAt ? (t.arriveAt.slice(0, 10) === t.departAt?.slice(0, 10) ? t.arriveAt.slice(11, 16) : formatDepart(t.arriveAt)) : null
 
   // 返回卡片
   return (
@@ -69,8 +73,8 @@ export function TicketCard({ ticket: t, fallbackDate }: { ticket: Ticket; fallba
         {/* 日期 + 离线可看 */}
         <div className="flex items-center justify-between text-[12px] text-muted">
           <span className="flex items-center gap-1.5">
-            <Icon name={MODE_ICON[t.mode]} size={14} />
-            {when ?? fallbackDate ?? '时间未填'} · {MODE_LABEL[t.mode]}
+            <Icon name={isHotel ? 'bed' : MODE_ICON[t.mode]} size={14} />
+            {isHotel ? '住宿' : MODE_LABEL[t.mode]}
             {t.provider && ` · ${t.provider}`}
           </span>
           {images.length > 0 && (
@@ -79,10 +83,23 @@ export function TicketCard({ ticket: t, fallbackDate }: { ticket: Ticket; fallba
         </div>
         {/* 标题（出发 → 到达） */}
         <h3 className="mt-2 font-serif text-[26px] leading-tight font-semibold">{t.title}</h3>
+        {/* 时间：交通是 出发–到达，住宿是 入住–退房 */}
+        <div className="mt-1 text-[13px] text-muted">
+          {when ? `${isHotel ? '入住 ' : ''}${when}${arrive ? ` – ${isHotel ? '退房 ' : ''}${arrive}` : ''}` : (fallbackDate ?? '时间未填')}
+        </div>
         {/* 关键信息 */}
         <div className="mt-3 grid grid-cols-3 gap-2 text-[12px]">
-          <Info label="车次" value={t.number} />
-          <Info label="座位" value={t.seat} />
+          {isHotel ? (
+            <>
+              <Info label="入住" value={t.departAt?.slice(5, 10).replace('-', '/')} />
+              <Info label="退房" value={t.arriveAt?.slice(5, 10).replace('-', '/')} />
+            </>
+          ) : (
+            <>
+              <Info label="车次 / 航班" value={t.number} />
+              <Info label="座位" value={t.seat} />
+            </>
+          )}
           {/* 订单号只显示后 4 位，详情里看完整的 */}
           <Info label="订单号" value={t.orderNo ? `••${t.orderNo.slice(-4)}` : undefined} />
         </div>

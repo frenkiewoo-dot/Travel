@@ -142,7 +142,11 @@ export default function SegmentPage() {
         ))}
         {/* 没有推荐方式 */}
         {options.length === 0 && (
-          <p className="rounded-2xl bg-oat p-4 text-[13px] leading-relaxed text-muted">这一段还没有推荐方式。可以用下面的 Google Maps 查一下，或者自己添加。</p>
+          <p className="rounded-2xl bg-oat p-4 text-[13px] leading-relaxed text-muted">
+            {seg.mode === 'flight'
+              ? '机票已经订好的话，在上面「车票」里添加机票截图、填航班号和时间就行。'
+              : '这一段还没有推荐方式。可以用下面的 Google Maps 查一下，或者自己添加。'}
+          </p>
         )}
       </div>
 

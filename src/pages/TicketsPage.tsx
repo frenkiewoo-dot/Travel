@@ -46,8 +46,10 @@ export default function TicketsPage() {
   }
   // 车票按出发时间排序
   const tickets = [...data.tickets].sort((a, b) => (a.departAt ?? '').localeCompare(b.departAt ?? '') || a.createdAt - b.createdAt)
-  // 没关联交通（或关联的交通已经不存在）的车票
-  const others = tickets.filter((t) => !t.segmentId || !segments.some((s) => s.id === t.segmentId))
+  // 住宿凭证（关联了住宿的）
+  const hotelTickets = tickets.filter((t) => t.placeId)
+  // 其他：没关联交通（或关联的交通已经不存在）、也不是住宿凭证
+  const others = tickets.filter((t) => !t.placeId && (!t.segmentId || !segments.some((s) => s.id === t.segmentId)))
 
   // 页面内容
   return (
@@ -92,6 +94,18 @@ export default function TicketsPage() {
           </section>
         )
       })}
+
+      {/* 住宿凭证 */}
+      {hotelTickets.length > 0 && (
+        <section className="mt-6">
+          <h2 className="text-[15px] font-semibold">住宿</h2>
+          <div className="mt-2.5 flex flex-col gap-3">
+            {hotelTickets.map((t) => (
+              <TicketCard key={t.id} ticket={t} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* 其他车票 */}
       {others.length > 0 && (

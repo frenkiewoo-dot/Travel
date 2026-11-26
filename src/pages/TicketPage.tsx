@@ -60,6 +60,8 @@ export default function TicketPage() {
   const pdfs = files.filter((f) => f.mime === 'application/pdf')
   // 关联的交通段
   const seg = data.segments.find((s) => s.id === t.segmentId)
+  // 关联的住宿
+  const hotel = data.places.find((p) => p.id === t.placeId)
   // 交通段按行程顺序（编辑表单用）
   const segments = [...data.segments].sort((a, b) => (data.stops.find((s) => s.id === a.fromStopId)?.order ?? 0) - (data.stops.find((s) => s.id === b.fromStopId)?.order ?? 0))
 
@@ -81,7 +83,7 @@ export default function TicketPage() {
         <Icon name="back" size={22} />
       </button>
       {/* 类型 */}
-      <div className="font-serif text-[16px] italic text-muted">Billet · {MODE_LABEL[t.mode]}</div>
+      <div className="font-serif text-[16px] italic text-muted">Billet · {hotel ? '住宿' : MODE_LABEL[t.mode]}</div>
       {/* 标题 */}
       <h1 className="font-serif text-[34px] leading-tight font-semibold">{t.title}</h1>
 
@@ -93,10 +95,15 @@ export default function TicketPage() {
 
       {/* 信息 */}
       <dl className="mt-4 grid grid-cols-2 gap-3 rounded-2xl border border-line bg-card p-4 text-[13px]">
-        <Item label="出发时间" value={formatDepart(t.departAt)} wide />
-        <Item label="运营商" value={t.provider} />
-        <Item label="车次 / 航班" value={t.number} />
-        <Item label="座位" value={t.seat} />
+        <Item label={hotel ? '入住时间' : '出发时间'} value={formatDepart(t.departAt)} wide />
+        <Item label={hotel ? '退房时间' : '到达时间'} value={formatDepart(t.arriveAt)} wide />
+        {!hotel && (
+          <>
+            <Item label="运营商" value={t.provider} />
+            <Item label="车次 / 航班" value={t.number} />
+            <Item label="座位" value={t.seat} />
+          </>
+        )}
         <Item label="订单号" value={t.orderNo} selectable />
         {t.note && <Item label="备注" value={t.note} wide />}
       </dl>
@@ -106,6 +113,16 @@ export default function TicketPage() {
         <Link to={`/segment/${seg.id}`} className="mt-3 flex items-center justify-between rounded-2xl border border-line bg-card px-4 py-3 text-[13px]">
           <span>
             关联交通：<b className="font-semibold">{segmentName(seg, data.stops)}</b>
+          </span>
+          <Icon name="chevronRight" size={15} className="text-muted" />
+        </Link>
+      )}
+
+      {/* 关联的住宿 */}
+      {hotel && (
+        <Link to={`/city/${hotel.stopId}`} className="mt-3 flex items-center justify-between rounded-2xl border border-line bg-card px-4 py-3 text-[13px]">
+          <span>
+            关联住宿：<b className="font-semibold">{hotel.name}</b>
           </span>
           <Icon name="chevronRight" size={15} className="text-muted" />
         </Link>

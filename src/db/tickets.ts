@@ -60,7 +60,7 @@ export async function saveTicket(opts: {
   // 车票 ID：修改时沿用，新建时生成
   const id = opts.ticket.id ?? newId('tk')
   // 用事务一次性写入
-  await db.transaction('rw', [db.tickets, db.ticketFiles, db.segments], async () => {
+  await db.transaction('rw', [db.tickets, db.ticketFiles, db.segments, db.places], async () => {
     // 保存车票本身
     await db.tickets.put({ ...opts.ticket, id, createdAt: opts.ticket.createdAt ?? Date.now() })
     // 要删的文件：PDF 原件被删时，它转出来的图片也一起删
@@ -92,6 +92,8 @@ export async function saveTicket(opts: {
     }
     // 关联了交通段，并且要求标记已订：把那一段标成“已订”
     if (opts.markBooked && opts.ticket.segmentId) await db.segments.update(opts.ticket.segmentId, { booked: true })
+    // 关联了住宿，并且要求标记已预订：把住宿状态改成“已预订”（也取消隐藏）
+    if (opts.markBooked && opts.ticket.placeId) await db.places.update(opts.ticket.placeId, { status: 'booked', hidden: false })
   })
   // 返回车票 ID
   return id

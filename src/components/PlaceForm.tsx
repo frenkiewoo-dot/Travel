@@ -46,6 +46,7 @@ export function PlaceForm({
   cityCenter,
   initial,
   defaultCategory,
+  defaultStatus = 'candidate',
   onClose,
 }: {
   // 旅行 ID
@@ -58,6 +59,8 @@ export function PlaceForm({
   initial: Place | null
   // 新建时的默认分类
   defaultCategory: PlaceCategory
+  // 新建时的默认状态（在“本次旅行”里添加住宿时默认“已预订”）
+  defaultStatus?: PlaceStatus
   // 关闭
   onClose: () => void
 }) {
@@ -84,7 +87,7 @@ export function PlaceForm({
   // 备注
   const [note, setNote] = useState(initial?.note ?? '')
   // 状态
-  const [status, setStatus] = useState<PlaceStatus>(initial?.status ?? 'candidate')
+  const [status, setStatus] = useState<PlaceStatus>(initial?.status ?? defaultStatus)
   // 出错提示
   const [error, setError] = useState<string | null>(null)
   // 正在保存

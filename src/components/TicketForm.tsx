@@ -2,6 +2,7 @@
 // 车票表单：添加或编辑一张车票
 //   - 上传图片 / PDF / 截图（可以多张）
 //   - 关联到某段城际交通，填订单号、座位、时间等
+//   - 住宿模式：关联到某个住宿，存预订截图、入住退房时间、订单号
 // ============================================================
 
 // 引入 React 钩子
@@ -38,6 +39,7 @@ export function TicketForm({
   segments,
   stops,
   defaultSegmentId,
+  place,
   onClose,
   onSaved,
 }: {
@@ -51,6 +53,8 @@ export function TicketForm({
   stops: Stop[]
   // 新建时默认关联的交通段
   defaultSegmentId?: string
+  // 住宿模式：关联的住宿 ID 和名字（这时表单变成“住宿预订截图”）
+  place?: { id: string; name: string }
   // 关闭
   onClose: () => void
   // 保存成功（返回车票 ID）
@@ -66,8 +70,12 @@ export function TicketForm({
   const [mode, setMode] = useState<TransportMode>(initial?.mode ?? (seg && seg.mode !== 'tbd' ? seg.mode : 'train'))
   // 运营商：新建时用交通段选定的方式
   const [provider, setProvider] = useState(initial?.provider ?? seg?.options?.find((o) => o.id === seg.chosenOptionId)?.provider ?? '')
-  // 出发时间
+  // 住宿模式（编辑已有的住宿凭证时也算）
+  const hotelId = place?.id ?? initial?.placeId
+  // 出发时间（住宿模式下是入住时间）
   const [departAt, setDepartAt] = useState(initial?.departAt ?? '')
+  // 到达时间（住宿模式下是退房时间）
+  const [arriveAt, setArriveAt] = useState(initial?.arriveAt ?? '')
   // 车次 / 航班号
   const [number, setNumber] = useState(initial?.number ?? '')
   // 座位
@@ -120,19 +128,22 @@ export function TicketForm({
 
   // 保存
   const submit = async () => {
-    // 标题：没填就用交通段名字，再不行就用“车票”
-    const t = title.trim() || (seg ? segmentName(seg, stops) : '车票')
+    // 标题：没填就用住宿名或交通段名字，再不行就用“车票”
+    const t = title.trim() || place?.name || (seg ? segmentName(seg, stops) : '车票')
     // 保存
     const id = await saveTicket({
       ticket: {
         id: initial?.id,
         createdAt: initial?.createdAt,
         tripId,
-        segmentId: segmentId || undefined,
+        // 住宿凭证不关联交通段
+        segmentId: hotelId ? undefined : segmentId || undefined,
+        placeId: hotelId,
         title: t,
         mode,
         provider: provider.trim() || undefined,
         departAt: departAt || undefined,
+        arriveAt: arriveAt || undefined,
         number: number.trim() || undefined,
         seat: seat.trim() || undefined,
         orderNo: orderNo.trim() || undefined,
@@ -151,7 +162,7 @@ export function TicketForm({
   // 返回表单
   return (
     <Sheet
-      title={initial ? '编辑车票' : '添加车票'}
+      title={hotelId ? (initial ? '编辑住宿凭证' : '添加住宿预订截图') : initial ? '编辑车票' : '添加车票'}
       onClose={onClose}
       footer={
         <div className="flex gap-2">
@@ -165,7 +176,7 @@ export function TicketForm({
       }
     >
       {/* 文件 */}
-      <Field label="车票文件（图片 / PDF / 截图）" group>
+      <Field label={hotelId ? '预订截图（图片 / PDF）' : '车票文件（图片 / PDF / 截图）'} group>
         <div className="flex flex-wrap gap-2">
           {/* 已有文件 */}
           {keptFiles.map((f) => (
@@ -191,6 +202,17 @@ export function TicketForm({
         {!busy && <p className="mt-2 text-[11px] text-muted">PDF 会自动转成图片，断网也能直接看。文件只存在这台手机里。</p>}
       </Field>
 
+      {/* 住宿模式：标记已预订 */}
+      {hotelId && (
+        <label className="mt-3 flex items-center gap-2 text-[13px]">
+          <input type="checkbox" checked={markBooked} onChange={(e) => setMarkBooked(e.target.checked)} className="h-5 w-5 accent-[var(--accent)]" />
+          同时把这个住宿标记为「已预订」
+        </label>
+      )}
+
+      {/* 交通模式才有的字段 */}
+      {!hotelId && (
+        <>
       {/* 关联交通段 */}
       <Field label="关联的交通">
         <select
@@ -229,8 +251,8 @@ export function TicketForm({
       )}
 
       {/* 标题 */}
-      <Field label="标题" hint="不填就用交通的名字">
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={seg ? segmentName(seg, stops) : '例如 Tivoli 门票'} className={INPUT} />
+      <Field label="标题" hint={hotelId ? '不填就用住宿的名字' : '不填就用交通的名字'}>
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={place?.name ?? (seg ? segmentName(seg, stops) : '例如 Tivoli 门票')} className={INPUT} />
       </Field>
 
       {/* 类型 */}
@@ -244,23 +266,35 @@ export function TicketForm({
         </div>
       </Field>
 
-      {/* 运营商 */}
-      <Field label="运营商">
-        <input value={provider} onChange={(e) => setProvider(e.target.value)} placeholder="例如 FlixBus、DB、easyJet" className={INPUT} />
-      </Field>
-      {/* 出发时间 */}
-      <Field label="出发时间">
-        <input type="datetime-local" value={departAt} onChange={(e) => setDepartAt(e.target.value)} className={INPUT} />
-      </Field>
-      {/* 车次和座位并排 */}
-      <div className="grid grid-cols-2 gap-2">
-        <Field label="车次 / 航班号">
-          <input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="例如 ICE 123" className={INPUT} />
+        </>
+      )}
+
+      {/* 运营商（住宿模式不需要） */}
+      {!hotelId && (
+        <Field label="运营商 / 航空公司">
+          <input value={provider} onChange={(e) => setProvider(e.target.value)} placeholder="例如 SAS、FlixBus、DB" className={INPUT} />
         </Field>
-        <Field label="座位">
-          <input value={seat} onChange={(e) => setSeat(e.target.value)} placeholder="例如 车厢 7 · 45" className={INPUT} />
+      )}
+      {/* 出发 / 到达时间（住宿模式下是入住 / 退房） */}
+      <div className="grid grid-cols-2 gap-2">
+        <Field label={hotelId ? '入住时间' : '出发时间'}>
+          <input type="datetime-local" value={departAt} onChange={(e) => setDepartAt(e.target.value)} className={`${INPUT} px-2 text-[13px]`} />
+        </Field>
+        <Field label={hotelId ? '退房时间' : '到达时间'}>
+          <input type="datetime-local" value={arriveAt} onChange={(e) => setArriveAt(e.target.value)} className={`${INPUT} px-2 text-[13px]`} />
         </Field>
       </div>
+      {/* 车次和座位并排（住宿模式不需要） */}
+      {!hotelId && (
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="车次 / 航班号">
+            <input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="例如 SK1234" autoCapitalize="characters" className={INPUT} />
+          </Field>
+          <Field label="座位">
+            <input value={seat} onChange={(e) => setSeat(e.target.value)} placeholder="例如 12A" className={INPUT} />
+          </Field>
+        </div>
+      )}
       {/* 订单号 */}
       <Field label="订单号 / 预订码">
         <input value={orderNo} onChange={(e) => setOrderNo(e.target.value)} autoCapitalize="characters" className={INPUT} />
