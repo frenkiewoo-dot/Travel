@@ -142,6 +142,8 @@ export default function TripsPage() {
 function TripCard({ row, active, photos, onOpen, onDelete }: { row: TripRow; active: boolean; photos: Map<string, StopPhotoSummary> | undefined; onOpen: () => void; onDelete: () => void }) {
   // 旅行
   const t = row.trip
+  // 是否打开「⋯」更多操作
+  const [menu, setMenu] = useState(false)
   // 去的城市（住宿城市）
   const cities = routeStops(row.stops).filter((s) => s.kind === 'stay')
   // 封面：第一个有照片的城市的封面
@@ -159,7 +161,7 @@ function TripCard({ row, active, photos, onOpen, onDelete }: { row: TripRow; act
 
   // 返回卡片
   return (
-    <article className={`overflow-hidden rounded-[22px] border bg-card ${active ? 'border-ink' : 'border-line'}`}>
+    <article className={`relative overflow-hidden rounded-[22px] border bg-card ${active ? 'border-ink' : 'border-line'}`}>
       {/* 封面（点它切换到这次旅行） */}
       <button onClick={onOpen} aria-label={`打开旅行 ${t.name}`} className="relative block w-full text-left" style={{ aspectRatio: '16 / 9' }}>
         {cover ? (
@@ -182,6 +184,14 @@ function TripCard({ row, active, photos, onOpen, onDelete }: { row: TripRow; act
           </span>
         )}
       </button>
+      {/* 右上角「⋯」：更多操作（删除放在这里，和「切换到这次」离得远，不容易误触） */}
+      <button
+        aria-label={`更多操作：${t.name}`}
+        onClick={() => setMenu(true)}
+        className="absolute top-2.5 right-2.5 flex h-9 w-9 items-center justify-center rounded-full bg-card/90 text-ink shadow-sm"
+      >
+        <Icon name="more" size={18} />
+      </button>
       {/* 文字信息 */}
       <div className="p-4">
         {!cover && <div className="font-serif text-[26px] leading-none font-medium">{t.name}</div>}
@@ -191,18 +201,39 @@ function TripCard({ row, active, photos, onOpen, onDelete }: { row: TripRow; act
         {/* 底部 */}
         <div className="mt-3 flex items-center justify-between gap-2">
           <span className="text-[12px] text-muted">{photoCount ? `${photoCount} 张照片` : '还没有照片'}</span>
-          <span className="flex items-center gap-2">
-            {/* 删除（会先确认，放进已删除的旅行） */}
-            <button onClick={onDelete} className="h-9 px-2 text-[12px] text-muted underline underline-offset-2">
-              删除
-            </button>
-            <button onClick={onOpen} className={`flex h-9 items-center gap-1 rounded-full px-3.5 text-[13px] ${active ? 'border border-line-strong' : 'bg-ink text-paper'}`}>
-              {active ? '打开' : '切换到这次'}
-              <Icon name="chevronRight" size={14} />
-            </button>
-          </span>
+          <button onClick={onOpen} className={`flex h-9 items-center gap-1 rounded-full px-3.5 text-[13px] ${active ? 'border border-line-strong' : 'bg-ink text-paper'}`}>
+            {active ? '打开' : '切换到这次'}
+            <Icon name="chevronRight" size={14} />
+          </button>
         </div>
       </div>
+
+      {/* 更多操作面板：打开 / 删除（删除放在最下面，单独一块，红色） */}
+      {menu && (
+        <Sheet title={t.name} onClose={() => setMenu(false)}>
+          <button
+            onClick={() => {
+              setMenu(false)
+              onOpen()
+            }}
+            className="flex h-12 w-full items-center justify-between rounded-2xl bg-oat px-4 text-[15px]"
+          >
+            {active ? '打开这次旅行' : '切换到这次旅行'}
+            <Icon name="chevronRight" size={16} className="text-muted" />
+          </button>
+          <button
+            onClick={() => {
+              setMenu(false)
+              onDelete()
+            }}
+            className="mt-6 flex h-12 w-full items-center justify-center gap-1.5 rounded-2xl border border-accent text-[15px] text-accent"
+          >
+            <Icon name="trash" size={16} />
+            删除这次旅行…
+          </button>
+          <p className="mt-2 text-center text-[12px] text-muted">删除前还会再确认一次；删掉的旅行可以在「已删除的旅行」里恢复。</p>
+        </Sheet>
+      )}
     </article>
   )
 }

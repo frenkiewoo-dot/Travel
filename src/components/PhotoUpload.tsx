@@ -1,5 +1,5 @@
 // ============================================================
-// 上传照片：选照片（可以多选）→ 选“放在哪里” → 处理（缩小、读拍摄时间和地点）→ 保存
+// 上传照片：选照片（可以多选，可以再加几张，选错的点 × 去掉）→ 选“放在哪里” → 处理（缩小、读拍摄时间和地点）→ 保存
 //   - 自动整理：照片带位置信息的，归到 300 米内最近的景点；其余按日期放进「城市漫步」
 //   - 也可以指定这一批都是在某个景点拍的
 // ============================================================
@@ -28,10 +28,19 @@ export function PhotoUpload({ tripId, stop, places, onClose, onDone }: { tripId:
   const inputRef = useRef<HTMLInputElement>(null)
   // 可选的景点（车站不算）
   const options = places.filter((p) => p.category !== 'station')
-  // 预览图的临时网址（最多 12 张）
-  const previews = useMemo(() => files.slice(0, 12).map((f) => URL.createObjectURL(f)), [files])
+  // 每张选中照片的预览网址（和 files 一一对应）
+  const previews = useMemo(() => files.map((f) => URL.createObjectURL(f)), [files])
   // 预览换了或关闭时释放网址
   useEffect(() => () => previews.forEach((u) => URL.revokeObjectURL(u)), [previews])
+  // 去掉一张（选错了）
+  const removeAt = (i: number) => setFiles((fs) => fs.filter((_, j) => j !== i))
+  // 加几张（接在后面，同一张不重复加）
+  const addFiles = (list: File[]) =>
+    setFiles((fs) => {
+      const key = (f: File) => `${f.name}|${f.size}|${f.lastModified}`
+      const have = new Set(fs.map(key))
+      return [...fs, ...list.filter((f) => !have.has(key(f)))]
+    })
 
   // 开始上传
   const start = async () => {
@@ -83,11 +92,25 @@ export function PhotoUpload({ tripId, stop, places, onClose, onDone }: { tripId:
         )
       }
     >
-      {/* 选照片 */}
-      <button onClick={() => inputRef.current?.click()} disabled={busy} className="flex h-24 w-full flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-line-strong text-[14px] text-muted">
-        <Icon name="plus" size={20} />
-        {files.length ? `已选 ${files.length} 张，点这里重新选` : '从相册选照片（可以多选）'}
-      </button>
+      {/* 选照片：没选时是大按钮；选了以后变成「再加几张」 */}
+      {files.length === 0 ? (
+        <button onClick={() => inputRef.current?.click()} disabled={busy} className="flex h-24 w-full flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-line-strong text-[14px] text-muted">
+          <Icon name="plus" size={20} />
+          从相册选照片（可以多选）
+        </button>
+      ) : (
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[13px]">
+            已选 <b className="font-semibold">{files.length}</b> 张
+            <span className="text-muted"> · 选错的点右上角 × 去掉</span>
+          </span>
+          {!busy && (
+            <button onClick={() => setFiles([])} className="h-8 shrink-0 text-[12px] text-muted underline underline-offset-2">
+              全部清空
+            </button>
+          )}
+        </div>
+      )}
       <input
         ref={inputRef}
         type="file"
@@ -95,18 +118,34 @@ export function PhotoUpload({ tripId, stop, places, onClose, onDone }: { tripId:
         multiple
         className="hidden"
         onChange={(e) => {
-          setFiles(Array.from(e.target.files ?? []))
+          addFiles(Array.from(e.target.files ?? []))
           e.target.value = ''
         }}
       />
 
-      {/* 预览 */}
-      {previews.length > 0 && (
-        <div className="mt-3 flex gap-1 overflow-x-auto [scrollbar-width:none]">
+      {/* 选中的照片：每张右上角 × 去掉；最后一格「再加几张」 */}
+      {files.length > 0 && (
+        <div className="mt-2 grid grid-cols-4 gap-1.5">
           {previews.map((u, i) => (
-            <img key={u} src={u} alt={`第 ${i + 1} 张`} className="h-16 w-16 shrink-0 rounded-[4px] bg-oat object-cover" />
+            <div key={u} className="relative aspect-square">
+              <img src={u} alt={`第 ${i + 1} 张：${files[i]?.name ?? ''}`} loading="lazy" className="h-full w-full rounded-[6px] bg-oat object-cover" />
+              {!busy && (
+                <button
+                  aria-label={`去掉第 ${i + 1} 张`}
+                  onClick={() => removeAt(i)}
+                  className="absolute -top-1.5 -right-1.5 flex h-7 w-7 items-center justify-center rounded-full border-2 border-card bg-ink text-paper shadow"
+                >
+                  <Icon name="close" size={13} />
+                </button>
+              )}
+            </div>
           ))}
-          {files.length > previews.length && <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[4px] bg-oat text-[12px] text-muted">+{files.length - previews.length}</span>}
+          {!busy && (
+            <button onClick={() => inputRef.current?.click()} aria-label="再加几张照片" className="flex aspect-square flex-col items-center justify-center gap-0.5 rounded-[6px] border border-dashed border-line-strong text-[11px] text-muted">
+              <Icon name="plus" size={18} />
+              再加几张
+            </button>
+          )}
         </div>
       )}
 
