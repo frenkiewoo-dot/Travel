@@ -39,7 +39,8 @@ export interface Trip {
 // ---------- 行程中的地点（城市 / 中转 / 家） ----------
 
 // 地点类型：home = 出发地/回家，stay = 住宿城市，transit = 只是路过（例如机场）
-export type StopKind = 'home' | 'stay' | 'transit'
+// saved = 以后想去的城市：不在本次路线里，但它的酒店景点等资料都保留（例如柏林）
+export type StopKind = 'home' | 'stay' | 'transit' | 'saved'
 
 // 行程里按顺序排列的一个地点
 export interface Stop {
@@ -247,6 +248,8 @@ export interface Ticket {
   tripId: ID
   // 关联的城际交通段（门票等可以不关联）
   segmentId?: ID
+  // 关联的住宿（酒店预订截图用；有这个就是住宿凭证）
+  placeId?: ID
   // 标题，例如 “Groningen → Berlin”
   title: string
   // 类型（火车 / 大巴 / 飞机 / 其他）
@@ -255,6 +258,8 @@ export interface Ticket {
   provider?: string
   // 出发时间，格式 'YYYY-MM-DDTHH:mm'（当地时间）
   departAt?: string
+  // 到达时间，格式同上
+  arriveAt?: string
   // 车次 / 航班号
   number?: string
   // 座位

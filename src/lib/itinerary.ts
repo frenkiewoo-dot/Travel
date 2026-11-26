@@ -28,10 +28,16 @@ export interface DayInfo {
   segments: Segment[]
 }
 
-// 把地点按顺序排列，并算出每个地点的到达/离开日
+// 本次路线上的地点（去掉“以后想去”的城市），按顺序排列
+export function routeStops(stops: Stop[]): Stop[] {
+  // 过滤并排序（复制一份，不改原数组）
+  return stops.filter((s) => s.kind !== 'saved').sort((a, b) => a.order - b.order)
+}
+
+// 把地点按顺序排列，并算出每个地点的到达/离开日（只算本次路线上的）
 export function computeSpans(stops: Stop[]): StopSpan[] {
-  // 先按 order 排序（复制一份，不改原数组）
-  const sorted = [...stops].sort((a, b) => a.order - b.order)
+  // 本次路线上的地点
+  const sorted = routeStops(stops)
   // 当前是第几天，从第 1 天开始
   let cursor = 1
   // 结果数组
@@ -51,8 +57,8 @@ export function computeSpans(stops: Stop[]): StopSpan[] {
 
 // 整个旅行一共几天
 export function totalDays(stops: Stop[]): number {
-  // 所有地点住的晚数加起来，再加 1（最后一天回家）
-  return stops.reduce((sum, s) => sum + s.nights, 0) + 1
+  // 本次路线上所有地点住的晚数加起来，再加 1（最后一天回家）
+  return routeStops(stops).reduce((sum, s) => sum + s.nights, 0) + 1
 }
 
 // 给日期加上 n 天，返回 'YYYY-MM-DD'

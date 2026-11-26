@@ -20,13 +20,27 @@ const KIND_OPTIONS: { value: StopKind; label: string }[] = [
   { value: 'stay', label: '住宿城市' },
   { value: 'transit', label: '只是路过' },
   { value: 'home', label: '出发 / 回家' },
+  { value: 'saved', label: '以后去' },
 ]
 
 // 表单保存时交出的数据（顺序和旅行 ID 由调用方决定）
 export type StopDraft = Omit<Stop, 'tripId' | 'order'>
 
 // 城市表单
-export function StopForm({ initial, near, onSave, onClose }: { initial: Stop | null; near: LngLat; onSave: (s: StopDraft) => void; onClose: () => void }) {
+export function StopForm({
+  initial,
+  near,
+  defaultKind = 'stay',
+  onSave,
+  onClose,
+}: {
+  initial: Stop | null
+  near: LngLat
+  // 新建时默认的类型
+  defaultKind?: StopKind
+  onSave: (s: StopDraft) => void
+  onClose: () => void
+}) {
   // 坐标
   const [lngLat, setLngLat] = useState<LngLat | null>(initial ? [initial.lng, initial.lat] : null)
   // 当地原文名
@@ -36,7 +50,7 @@ export function StopForm({ initial, near, onSave, onClose }: { initial: Stop | n
   // 国家代码
   const [country, setCountry] = useState(initial?.country ?? '')
   // 类型
-  const [kind, setKind] = useState<StopKind>(initial?.kind ?? 'stay')
+  const [kind, setKind] = useState<StopKind>(initial?.kind ?? defaultKind)
   // 住几晚
   const [nights, setNights] = useState(initial?.nights ?? 2)
   // 出错提示
@@ -65,8 +79,8 @@ export function StopForm({ initial, near, onSave, onClose }: { initial: Stop | n
       country: country.trim().toUpperCase().slice(0, 2),
       lng: lngLat[0],
       lat: lngLat[1],
-      // 只有住宿城市才有晚数
-      nights: kind === 'stay' ? Math.max(1, nights) : 0,
+      // 只有住宿城市才有晚数（“以后去”的城市保留原来的晚数，方便以后加回行程）
+      nights: kind === 'stay' || kind === 'saved' ? Math.max(1, nights) : 0,
     })
   }
 

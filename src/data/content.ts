@@ -8,13 +8,44 @@
 // ============================================================
 
 // 引入数据结构
-import type { CityGuide, TransportOption } from '../db/schema'
+import type { CityGuide, Stop, TransportMode, TransportOption } from '../db/schema'
 
 // 内容版本号（改了下面的内容就加 1）
-export const CONTENT_VERSION = 1
+// 1 = 第 4 步：城际交通方式、柏林 / 哥本哈根 / 阿姆斯特丹机场指南
+// 2 = 行程变更：改成 哥本哈根 4 晚 + 斯德哥尔摩 4 晚，柏林移到“以后想去”；加斯德哥尔摩、奥斯陆、去程机场指南
+export const CONTENT_VERSION = 2
 
 // 初始行程的 ID（推荐内容只合并到这个行程里）
 export const NOEL_TRIP_ID = 'trip-noel-2026'
+
+// ---------- 新的行程结构（第 2 版内容） ----------
+// 只有城市顺序、住几晚、出发日期这些初始行程信息；航班号、时间、住哪家都不放在这里（由你在 App 里填，只存在手机上）
+export const NEW_PLAN = {
+  // 旅途第一天
+  startDate: '2026-12-20',
+  // 旅行名称
+  name: 'København & Stockholm',
+  // 路线（按顺序），最后的柏林是“以后想去”
+  stops: [
+    { id: 'stop-gro-start', kind: 'home', name: 'Groningen', nameZh: '格罗宁根', country: 'NL', lat: 53.2194, lng: 6.5665, nights: 0 },
+    { id: 'stop-ams-out', kind: 'transit', name: 'Amsterdam Schiphol', nameZh: '阿姆斯特丹机场', country: 'NL', lat: 52.3105, lng: 4.7683, nights: 0 },
+    { id: 'stop-copenhagen', kind: 'stay', name: 'København', nameZh: '哥本哈根', country: 'DK', lat: 55.6761, lng: 12.5683, nights: 4 },
+    { id: 'stop-stockholm', kind: 'stay', name: 'Stockholm', nameZh: '斯德哥尔摩', country: 'SE', lat: 59.3293, lng: 18.0686, nights: 4 },
+    { id: 'stop-osl', kind: 'transit', name: 'Oslo Gardermoen', nameZh: '奥斯陆机场', country: 'NO', lat: 60.1939, lng: 11.1004, nights: 0 },
+    { id: 'stop-ams', kind: 'transit', name: 'Amsterdam Schiphol', nameZh: '阿姆斯特丹机场', country: 'NL', lat: 52.3105, lng: 4.7683, nights: 0 },
+    { id: 'stop-gro-end', kind: 'home', name: 'Groningen', nameZh: '格罗宁根', country: 'NL', lat: 53.2194, lng: 6.5665, nights: 0 },
+    { id: 'stop-berlin', kind: 'saved', name: 'Berlin', nameZh: '柏林', country: 'DE', lat: 52.52, lng: 13.405, nights: 2 },
+  ] as Omit<Stop, 'tripId' | 'order'>[],
+  // 每段交通的方式（键是 “出发ID>到达ID”）
+  modes: {
+    'stop-gro-start>stop-ams-out': 'train',
+    'stop-ams-out>stop-copenhagen': 'flight',
+    'stop-copenhagen>stop-stockholm': 'flight',
+    'stop-stockholm>stop-osl': 'flight',
+    'stop-osl>stop-ams': 'flight',
+    'stop-ams>stop-gro-end': 'train',
+  } as Record<string, TransportMode>,
+}
 
 // ---------- 城际交通：每段的可选方式 ----------
 // 键是 “出发城市ID>到达城市ID”（用城市 ID 配对，即使交通段重新生成也能对上）
@@ -160,6 +191,23 @@ export const SEGMENT_OPTIONS: Record<string, TransportOption[]> = {
     },
   ],
 
+  // ===== 格罗宁根 → 阿姆斯特丹机场（火车，去程） =====
+  'stop-gro-start>stop-ams-out': [
+    {
+      id: 'rec-gro-ams-ns',
+      mode: 'train',
+      provider: 'NS',
+      title: 'Groningen → Schiphol Airport 站（部分直达）',
+      duration: '约 2 小时 10–25 分',
+      price: '全价约 €30 左右（需核实）',
+      frequency: '每小时多班',
+      url: 'https://www.ns.nl/en',
+      note: '不用提前订票，用 OV-chipkaart 或银行卡（OVpay）刷卡进站。欧洲航班建议起飞前 2 小时到机场，所以要预留 4 个多小时；节前人多，最好再早一班。',
+      sourceUrl: 'https://www.thetrainline.com/train-times/amsterdam-schiphol-airport-to-groningen',
+      source: 'recommended',
+    },
+  ],
+
   // ===== 阿姆斯特丹机场 → 格罗宁根（火车） =====
   'stop-ams>stop-gro-end': [
     {
@@ -273,6 +321,7 @@ export const CITY_GUIDES: Record<string, CityGuide> = {
       },
     ],
     tips: [
+      '去机场：地铁 M2 到 Lufthavnen 站约 15 分钟，要买 3 区票；欧洲航班建议起飞前 2 小时到。',
       '地铁 24 小时运行、无人驾驶，没有闸机，上车前先在 App 里买好票。',
       '2026 年 1 月起票价平均上调约 1%，以 DOT App 显示的价格为准。',
     ],
@@ -308,6 +357,105 @@ export const CITY_GUIDES: Record<string, CityGuide> = {
     tips: ['到达大厅里就有 NS 售票机和服务台。'],
     holidayNotes: [],
     sources: [{ label: 'Schiphol → Groningen 火车（Trainline）', url: 'https://www.thetrainline.com/train-times/amsterdam-schiphol-airport-to-groningen' }],
+    updated: '2026 年 11 月',
+  },
+
+  // ===== 阿姆斯特丹机场（去程） =====
+  'stop-ams-out': {
+    tickets: [{ name: 'NS 火车 Groningen → Schiphol', price: '全价约 €30（需核实）', note: '用 OV-chipkaart 或银行卡（OVpay）刷卡进出站，不用提前买票' }],
+    apps: [
+      { name: 'NS', use: '查荷兰火车班次和站台', url: 'https://www.ns.nl/en' },
+      { name: 'Schiphol', use: '查航班状态、值机柜台和登机口', url: 'https://www.schiphol.nl/en/' },
+    ],
+    arrivals: [
+      {
+        name: 'Schiphol Airport',
+        nameZh: '阿姆斯特丹史基浦机场',
+        lat: 52.3091,
+        lng: 4.7623,
+        how: '火车站就在机场大厅（Schiphol Plaza）下面，坐扶梯上去就是值机和安检。欧洲航班建议起飞前 2 小时到。',
+      },
+    ],
+    tips: ['去哥本哈根是申根区内的航班，不用过护照检查，但要带护照或身份证件。', '节前机场人多，安检可能排长队。'],
+    holidayNotes: [],
+    sources: [{ label: 'Schiphol → Groningen 火车（Trainline）', url: 'https://www.thetrainline.com/train-times/amsterdam-schiphol-airport-to-groningen' }],
+    updated: '2026 年 11 月',
+  },
+
+  // ===== 斯德哥尔摩 =====
+  'stop-stockholm': {
+    tickets: [
+      { name: '单程票', price: '约 SEK 43', note: '75 分钟内可以随意换乘地铁、公交、轻轨、渡轮' },
+      { name: '24 小时票', price: '约 SEK 180' },
+      { name: '72 小时票', price: '约 SEK 360', note: '住 4 晚的话，72 小时票加几张单程票通常最划算' },
+      { name: '7 天票', price: '约 SEK 470' },
+      { name: '直接刷银行卡', price: '按单程票计价', note: '地铁闸机可以直接刷 Visa / Mastercard（需核实）' },
+    ],
+    apps: [
+      { name: 'SL', use: '斯德哥尔摩官方交通 App：买票、查路线', url: 'https://sl.se/en' },
+      { name: 'Arlanda Express', use: '机场快线车票', url: 'https://www.arlandaexpress.com/tickets-prices' },
+      { name: 'Flygbussarna', use: '机场大巴车票', url: 'https://www.flygbussarna.se/en' },
+    ],
+    arrivals: [
+      {
+        name: 'Stockholm Arlanda',
+        nameZh: '斯德哥尔摩阿兰达机场',
+        lat: 59.6498,
+        lng: 17.9238,
+        how: '进城三种方式：① Arlanda Express 机场快线到中央车站约 18–20 分钟，单程约 SEK 340（最快但最贵）；② SL 通勤火车（pendeltåg）从 Arlanda C 到 Stockholm City 约 38 分钟，SL 票加机场站附加费，合计约 SEK 120–130；③ Flygbussarna 机场大巴约 45 分钟，约 SEK 100–130。',
+      },
+      {
+        name: 'Stockholm Centralstation / T-Centralen',
+        nameZh: '斯德哥尔摩中央车站',
+        lat: 59.3303,
+        lng: 18.0586,
+        how: '市中心的交通枢纽，三条地铁线都经过地下的 T-Centralen，从这里换地铁去住处最方便。',
+      },
+    ],
+    tips: [
+      '地铁站有闸机：用 SL App 里的电子票扫码，或者直接刷银行卡进站。',
+      '冬天下午 3 点左右天就黑了，白天的景点尽量安排在上午和中午。',
+    ],
+    holidayNotes: [
+      '12/24 平安夜（julafton）是瑞典最重要的节日：下午起几乎所有商店关门，很多餐厅不营业，公交班次减少。如果 24 日下午才到，建议提前买好晚饭和第二天的食物（青旅一般有公共厨房）。',
+      '12/25 圣诞节（juldagen）是法定假日，几乎所有商店关门，公交按节假日班次。',
+      '12/26（annandag jul）也是法定假日，但很多商店会开门并开始圣诞后打折（需核实）。',
+      '很多博物馆 24–25 日关门；Skansen 露天博物馆圣诞期间开放（需核实当天时间）。',
+    ],
+    sources: [
+      { label: 'Visit Stockholm：公共交通', url: 'https://www.visitstockholm.com/travel-info/public-transportation-in-stockholm/' },
+      { label: 'SL 票价（2025 年新闻稿）', url: 'https://www.mynewsdesk.com/se/sl/news/nya-priser-paa-vissa-sl-biljetter-aar-2025-491294' },
+      { label: '斯德哥尔摩交通指南（Nomado）', url: 'https://www.nomadotravel.app/en/guides/getting-around-stockholm' },
+      { label: 'SL：直接刷卡乘车', url: 'https://sl.se/en/fares-and-tickets/contactless-pay-as-you-go/how-to-pay-as-you-go' },
+      { label: 'Arlanda Express 票价', url: 'https://www.arlandaexpress.com/tickets-prices' },
+      { label: '阿兰达机场进城方式比较', url: 'https://www.stockholm-spirit.com/guides/arlanda-airport-to-city-options/' },
+      { label: '瑞典圣诞期间营业情况（The Local）', url: 'https://www.thelocal.se/20241213/whats-open-and-what-closes-in-sweden-during-the-christmas-holidays' },
+    ],
+    updated: '2026 年 11 月',
+  },
+
+  // ===== 奥斯陆机场（转机） =====
+  'stop-osl': {
+    tickets: [],
+    apps: [{ name: 'SAS', use: '查航班状态、登机口，改签', url: 'https://www.flysas.com' }],
+    arrivals: [
+      {
+        name: 'Oslo Gardermoen',
+        nameZh: '奥斯陆加勒穆恩机场',
+        lat: 60.1939,
+        lng: 11.1004,
+        how: '斯德哥尔摩 → 奥斯陆 → 阿姆斯特丹都在申根区内，转机不用过护照检查，也不用重新安检。下飞机后看屏幕找下一班的登机口就行。',
+      },
+    ],
+    tips: [
+      '1 小时 30 分的转机时间比较充裕。SAS 说欧洲内转机一般 30 分钟就够。',
+      '同一张 SAS 订单里的联程航班，如果第一班延误导致赶不上第二班，SAS 会负责安排（需核实你的订单）。',
+    ],
+    holidayNotes: [],
+    sources: [
+      { label: 'SAS：转机和转机时间', url: 'https://www.flysas.com/en/travel-info/at-the-airport/connecting-flights' },
+      { label: '奥斯陆机场转机指南（Layover Index）', url: 'https://layoverindex.com/osl/layover/' },
+    ],
     updated: '2026 年 11 月',
   },
 }

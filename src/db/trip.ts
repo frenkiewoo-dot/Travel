@@ -40,15 +40,17 @@ export async function saveStops(tripId: string, nextStops: Stop[]) {
 
     // 1. 重新编号顺序
     const stops = nextStops.map((s, i) => ({ ...s, tripId, order: i }))
+    // 本次路线上的地点（“以后想去”的城市不参与路线）
+    const route = stops.filter((s) => s.kind !== 'saved')
 
-    // 2. 交通段：每两个相邻城市之间一段；同样的两站之间原来有的就保留
+    // 2. 交通段：路线上每两个相邻地点之间一段；同样的两站之间原来有的就保留
     const segs: Segment[] = []
-    // 逐对相邻城市
-    for (let i = 0; i < stops.length - 1; i++) {
+    // 逐对相邻地点
+    for (let i = 0; i < route.length - 1; i++) {
       // 出发
-      const from = stops[i].id
+      const from = route[i].id
       // 到达
-      const to = stops[i + 1].id
+      const to = route[i + 1].id
       // 原来有没有这一段
       const keep = oldSegs.find((s) => s.fromStopId === from && s.toStopId === to)
       // 有就保留，没有就新建一段“待选”

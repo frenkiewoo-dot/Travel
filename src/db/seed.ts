@@ -6,6 +6,8 @@
 
 // 引入数据结构
 import type { DayPlan, Place, Segment, Stop, Trip } from './schema'
+// 引入新的行程结构
+import { NEW_PLAN } from '../data/content'
 
 // 初始旅行的固定 ID（固定 ID 方便以后做数据迁移）
 const TRIP_ID = 'trip-noel-2026'
@@ -20,15 +22,13 @@ export function buildSeed() {
     // 固定 ID
     id: TRIP_ID,
     // 名称
-    name: 'Berlin & København',
+    name: NEW_PLAN.name,
     // 副标题
     subtitle: 'Noël 2026',
     // 1 个人
     travelers: 1,
-    // 出发日期还没定
-    startDate: null,
-    // 待定时的提示
-    startDateHint: '12/20–12/23 之间出发',
+    // 旅途第一天
+    startDate: NEW_PLAN.startDate,
     // 统一用欧元
     baseCurrency: 'EUR',
     // 创建时间
@@ -37,31 +37,23 @@ export function buildSeed() {
     updatedAt: now,
   }
 
-  // 行程中的地点（按顺序）
-  const stops: Stop[] = [
-    // 0：从格罗宁根出发
-    { id: 'stop-gro-start', tripId: TRIP_ID, order: 0, kind: 'home', name: 'Groningen', nameZh: '格罗宁根', country: 'NL', lat: 53.2194, lng: 6.5665, nights: 0 },
-    // 1：柏林，住 2 晚
-    { id: 'stop-berlin', tripId: TRIP_ID, order: 1, kind: 'stay', name: 'Berlin', nameZh: '柏林', country: 'DE', lat: 52.52, lng: 13.405, nights: 2 },
-    // 2：哥本哈根，住 3 晚
-    { id: 'stop-copenhagen', tripId: TRIP_ID, order: 2, kind: 'stay', name: 'København', nameZh: '哥本哈根', country: 'DK', lat: 55.6761, lng: 12.5683, nights: 3 },
-    // 3：阿姆斯特丹史基浦机场，只是中转
-    { id: 'stop-ams', tripId: TRIP_ID, order: 3, kind: 'transit', name: 'Amsterdam Schiphol', nameZh: '阿姆斯特丹机场', country: 'NL', lat: 52.3105, lng: 4.7683, nights: 0 },
-    // 4：回到格罗宁根
-    { id: 'stop-gro-end', tripId: TRIP_ID, order: 4, kind: 'home', name: 'Groningen', nameZh: '格罗宁根', country: 'NL', lat: 53.2194, lng: 6.5665, nights: 0 },
-  ]
+  // 行程中的地点（按顺序；最后的柏林是“以后想去”）
+  const stops: Stop[] = NEW_PLAN.stops.map((def, i) => ({ ...def, tripId: TRIP_ID, order: i }))
 
-  // 城际交通（交通方式的详细比较在后面的“交通”步骤里补充）
-  const segments: Segment[] = [
-    // 格罗宁根 → 柏林：方式待选
-    { id: 'seg-gro-ber', tripId: TRIP_ID, fromStopId: 'stop-gro-start', toStopId: 'stop-berlin', mode: 'tbd', booked: false, note: '火车或大巴，待选' },
-    // 柏林 → 哥本哈根：上午出发，方式待选
-    { id: 'seg-ber-cph', tripId: TRIP_ID, fromStopId: 'stop-berlin', toStopId: 'stop-copenhagen', mode: 'tbd', timeOfDay: '上午', booked: false, note: '火车或大巴，待选' },
-    // 哥本哈根 → 阿姆斯特丹：下午坐飞机
-    { id: 'seg-cph-ams', tripId: TRIP_ID, fromStopId: 'stop-copenhagen', toStopId: 'stop-ams', mode: 'flight', timeOfDay: '下午', booked: false },
-    // 阿姆斯特丹 → 格罗宁根：火车
-    { id: 'seg-ams-gro', tripId: TRIP_ID, fromStopId: 'stop-ams', toStopId: 'stop-gro-end', mode: 'train', booked: false },
-  ]
+  // 城际交通：路线上每两个相邻地点之间一段（交通方式见 NEW_PLAN.modes）
+  const route = stops.filter((s) => s.kind !== 'saved')
+  // 生成交通段
+  const segments: Segment[] = route.slice(0, -1).map((from, i) => ({
+    // 固定 ID：seg-出发-到达
+    id: `seg-${from.id}-${route[i + 1].id}`,
+    tripId: TRIP_ID,
+    fromStopId: from.id,
+    toStopId: route[i + 1].id,
+    // 交通方式
+    mode: NEW_PLAN.modes[`${from.id}>${route[i + 1].id}`] ?? 'tbd',
+    // 还没订
+    booked: false,
+  }))
 
   // 几个著名景点（公开坐标；完整的推荐清单在后面的调研步骤补充）
   const places: Place[] = [
@@ -100,21 +92,13 @@ export function buildSeed() {
   // 按 ID 找地点（小工具函数）
   const pick = (id: string) => places.find((p) => p.id === id)!
 
-  // 示例日程：用来演示“今日旅程”的地图和路线，你随时可以改或删
+  // 示例日程：用来演示地图和路线，你随时可以改或删
   const dayPlans: DayPlan[] = [
     {
-      // 第 1 天：到达柏林后走一走
-      id: `${TRIP_ID}:1`,
+      // 第 2 天：哥本哈根市中心
+      id: `${TRIP_ID}:2`,
       tripId: TRIP_ID,
-      dayIndex: 1,
-      items: [pick('pl-ber-hbf'), pick('pl-ber-dom'), pick('pl-ber-tor'), pick('pl-ber-gendarmenmarkt')].map((p) => item(p)),
-      isSample: true,
-    },
-    {
-      // 第 4 天：哥本哈根市中心
-      id: `${TRIP_ID}:4`,
-      tripId: TRIP_ID,
-      dayIndex: 4,
+      dayIndex: 2,
       items: [pick('pl-cph-h'), pick('pl-cph-rosenborg'), pick('pl-cph-amalienborg'), pick('pl-cph-nyhavn')].map((p) => item(p)),
       isSample: true,
     },
