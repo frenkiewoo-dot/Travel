@@ -1,6 +1,6 @@
 // ============================================================
 // 看大图：黑底全屏，左右滑动（电脑上用 ← → 键）切换，点图片放大
-//   - 顶部：关闭、第几张、设为封面、删除
+//   - 顶部：左边返回，中间第几张，右边设为封面、× 删除这张
 //   - 底部：在哪拍的、什么时候、一句话说明（可以改）、换个景点
 // ============================================================
 
@@ -150,10 +150,11 @@ export function PhotoViewer({
   // 返回
   return (
     <div role="dialog" aria-modal="true" aria-label="看照片" className="fixed inset-0 z-[100] flex flex-col bg-black text-white">
-      {/* 顶部 */}
+      {/* 顶部：左边返回；右边设为封面、× 删除这张照片 */}
       <div className="flex shrink-0 items-center justify-between px-3 pt-[max(env(safe-area-inset-top),10px)] pb-2">
-        <button aria-label="关闭" onClick={onClose} className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10">
-          <Icon name="close" size={20} />
+        <button aria-label="返回相册" onClick={onClose} className="flex h-11 items-center gap-0.5 rounded-full bg-white/10 pr-3.5 pl-2 text-[13px]">
+          <Icon name="back" size={20} />
+          相册
         </button>
         <span className="text-[13px] tabular-nums opacity-80">
           {index + 1} / {photos.length}
@@ -170,8 +171,8 @@ export function PhotoViewer({
             <Icon name="sparkle" size={15} />
             {stop.coverPhotoId === photo.id ? '封面' : '设为封面'}
           </button>
-          <button aria-label="删除这张照片" onClick={remove} className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10">
-            <Icon name="trash" size={18} />
+          <button aria-label="删除这张照片" onClick={remove} className="flex h-11 w-11 items-center justify-center rounded-full bg-white/15">
+            <Icon name="close" size={20} />
           </button>
         </div>
       </div>

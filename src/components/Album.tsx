@@ -7,7 +7,7 @@
 // ============================================================
 
 // 引入 React 钩子
-import { useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { useCallback, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 // 引入数据结构
 import type { Photo, Place, Stop } from '../db/schema'
 // 引入相册数据操作
@@ -18,6 +18,8 @@ import { useObjectUrl } from '../db/tickets'
 import { buildChapters, chineseDate, clampAspect, frenchDate, isPortrait, layoutChapter, roman, splitColumns, type Block, type Chapter } from '../lib/albumLayout'
 // 引入组件
 import { Icon } from './Icon'
+// 引入横向拖动滑动
+import { useDragScroll } from '../lib/useDragScroll'
 import { Sheet, TEXTAREA } from './Sheet'
 import { PhotoViewer } from './PhotoViewer'
 import { PhotoUpload } from './PhotoUpload'
@@ -292,7 +294,17 @@ function Carousel({ photos, onOpen }: { photos: Photo[]; onOpen: (p: Photo) => v
   // 当前第几张
   const [cur, setCur] = useState(0)
   // 滚动容器
-  const ref = useRef<HTMLDivElement>(null)
+  const ref = useRef<HTMLDivElement | null>(null)
+  // 电脑上可以用鼠标拖动
+  const drag = useDragScroll<HTMLDivElement>()
+  // 同时记住元素、接上拖动（保持不变，避免滑动时重新渲染打断拖动）
+  const setRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      ref.current = el
+      drag(el)
+    },
+    [drag],
+  )
   // 滚动时算出当前第几张
   const onScroll = () => {
     // 容器
@@ -307,7 +319,10 @@ function Carousel({ photos, onOpen }: { photos: Photo[]; onOpen: (p: Photo) => v
   return (
     <div className="relative">
       {/* 横向滚动，左右延伸到屏幕边缘 */}
-      <div ref={ref} onScroll={onScroll} className="-mx-5 flex snap-x snap-mandatory gap-2 overflow-x-auto scroll-px-5 px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div
+        ref={setRef}
+        onScroll={onScroll}
+        className="-mx-5 flex snap-x snap-mandatory gap-2 overflow-x-auto scroll-px-5 px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {photos.map((p) => (
           <Tile key={p.id} photo={p} onOpen={onOpen} className="w-[84%] shrink-0 snap-start" style={{ aspectRatio: '4 / 5' }} />
         ))}

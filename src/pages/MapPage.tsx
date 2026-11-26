@@ -28,7 +28,7 @@ import { drawWalkRoute } from '../map/walkRoute'
 // 引入定位
 import { useGeolocation } from '../lib/useGeolocation'
 // 引入搜索
-import { reverseGeocode, searchPlaces, type SearchResult } from '../lib/search'
+import { bboxAround, bboxUnion, distanceText, googleMapsSearchUrl, reverseGeocode, searchPlaces, type Bbox, type SearchResult } from '../lib/search'
 // 引入步行路线
 import { getWalkRoute, type WalkRoute } from '../lib/routing'
 // 引入地理工具
@@ -82,6 +82,10 @@ export default function MapPage() {
   const [results, setResults] = useState<SearchResult[]>([])
   // 是否正在搜索
   const [searching, setSearching] = useState(false)
+  // 是否搜索全部地区（默认只搜地图当前范围）
+  const [searchAll, setSearchAll] = useState(false)
+  // 这次搜索的中心（给 Google Maps 链接用）
+  const [searchCenter, setSearchCenter] = useState<LngLat | null>(null)
   // 搜索出错提示
   const [searchError, setSearchError] = useState<string | null>(null)
   // 是否显示搜索结果列表
@@ -192,8 +196,16 @@ export default function MapPage() {
       try {
         // 地图中心（让附近的结果排前面）
         const c = map?.getCenter()
+        const center: LngLat | null = c ? [c.lng, c.lat] : null
+        setSearchCenter(center)
+        // 当前范围：地图看得到的区域，至少方圆 15 公里（放得很大时也能搜到整个城市）
+        let bbox: Bbox | null = null
+        if (map && center && !searchAll) {
+          const b = map.getBounds()
+          bbox = bboxUnion([b.getWest(), b.getSouth(), b.getEast(), b.getNorth()], bboxAround(center, 15))
+        }
         // 搜索
-        const r = await searchPlaces(query, c ? [c.lng, c.lat] : null, ctrl.signal)
+        const r = await searchPlaces(query, { near: center, bbox }, ctrl.signal)
         // 保存结果
         setResults(r)
         // 清掉错误
@@ -211,7 +223,7 @@ export default function MapPage() {
       clearTimeout(t)
       ctrl.abort()
     }
-  }, [query, map])
+  }, [query, map, searchAll])
 
   // 选中一个搜索结果
   const chooseResult = (r: SearchResult) => {
@@ -554,6 +566,7 @@ export default function MapPage() {
             onChange={(e) => {
               setQuery(e.target.value)
               setShowResults(true)
+              setSearchAll(false)
             }}
             // 聚焦时显示结果
             onFocus={() => setShowResults(true)}
@@ -583,8 +596,29 @@ export default function MapPage() {
             {searching && results.length === 0 && <p className="px-4 py-3 text-[13px] text-muted">正在搜索…</p>}
             {/* 出错 */}
             {searchError && <p className="px-4 py-3 text-[13px] text-accent">{searchError}</p>}
-            {/* 没结果 */}
-            {!searching && !searchError && results.length === 0 && <p className="px-4 py-3 text-[13px] text-muted">没有找到，换个关键词试试</p>}
+            {/* 范围说明 */}
+            {!searchError && (results.length > 0 || !searching) && (
+              <p className="border-b border-line px-4 py-2 text-[11px] text-muted">{searchAll ? '全部地区的结果' : '只搜地图当前范围，按距离排序'}</p>
+            )}
+            {/* 没结果：说明原因，给出下一步 */}
+            {!searching && !searchError && results.length === 0 && (
+              <div className="px-4 py-3 text-[13px] leading-relaxed">
+                <p>
+                  {searchAll ? '全部地区都没有找到' : '地图当前范围里没有找到'}「{query.trim()}」。
+                </p>
+                <p className="mt-1 text-[12px] text-muted">地图数据来自 OpenStreetMap，有些小店还没有被收录。可以在 Google Maps 里搜到它，再回来在那个位置长按地图（电脑上右键）放图钉；也可以直接输入坐标，例如 45.4642, 9.19。</p>
+                <div className="mt-2.5 flex flex-wrap gap-2">
+                  <a href={googleMapsSearchUrl(query, searchCenter)} target="_blank" rel="noopener noreferrer" className="flex h-9 items-center gap-1 rounded-full bg-ink px-3.5 text-[13px] text-paper">
+                    <Icon name="external" size={14} />在 Google Maps 里搜
+                  </a>
+                  {!searchAll && (
+                    <button onClick={() => setSearchAll(true)} className="flex h-9 items-center rounded-full border border-line-strong px-3.5 text-[13px]">
+                      搜索全部地区
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
             {/* 结果列表 */}
             {results.map((r) => (
               <button key={r.id} onClick={() => chooseResult(r)} className="flex w-full items-start gap-3 border-b border-line px-4 py-3 text-left last:border-b-0">
@@ -600,8 +634,23 @@ export default function MapPage() {
                   {/* 地址 */}
                   <span className="block truncate text-[12px] text-muted">{r.address}</span>
                 </span>
+                {/* 距离 */}
+                {r.distance !== undefined && <span className="shrink-0 pt-0.5 text-[11px] text-muted tabular-nums">{distanceText(r.distance)}</span>}
               </button>
             ))}
+            {/* 有结果时：也可以扩大范围或去 Google Maps */}
+            {results.length > 0 && (
+              <div className="flex flex-wrap gap-x-4 gap-y-1 px-4 py-2.5 text-[12px]">
+                {!searchAll && (
+                  <button onClick={() => setSearchAll(true)} className="text-muted underline underline-offset-2">
+                    搜索全部地区
+                  </button>
+                )}
+                <a href={googleMapsSearchUrl(query, searchCenter)} target="_blank" rel="noopener noreferrer" className="text-muted underline underline-offset-2">
+                  在 Google Maps 里搜
+                </a>
+              </div>
+            )}
           </div>
         )}
 

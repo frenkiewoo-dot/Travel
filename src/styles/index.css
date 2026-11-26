@@ -553,3 +553,13 @@ input[type="search"]::-webkit-search-decoration {
     break-inside: avoid;
   }
 }
+
+/* 长按路线时的圆圈：从空到满（首页） */
+@keyframes press-ring {
+  from {
+    stroke-dashoffset: 164;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}

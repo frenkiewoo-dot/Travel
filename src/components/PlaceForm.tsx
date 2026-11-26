@@ -184,6 +184,7 @@ export function PlaceForm({
         <LocationPicker
           value={lngLat}
           near={cityCenter}
+          localKm={30}
           onChange={(loc) => {
             // 更新坐标
             setLngLat(loc.lngLat)

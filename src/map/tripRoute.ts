@@ -34,14 +34,22 @@ export function drawTripRoute(map: MLMap, stops: Stop[], segments: Segment[], pr
     const bend = seg.mode === 'flight' ? 0.22 : 0.12
     // 生成弧线
     const coords = arc([a.lng, a.lat] as LngLat, [b.lng, b.lat] as LngLat, bend)
-    // 返回线要素，带上交通方式
-    return [lineFeature(coords, { mode: seg.mode })]
+    // 返回线要素，带上交通方式和交通段 ID（长按路线时用来找到是哪一段）
+    return [lineFeature(coords, { mode: seg.mode, segId: seg.id })]
   })
   // 写入数据源
   setGeoJSON(map, `${prefix}-route`, collection(features))
   // 读取当前主题的颜色
   const accent = cssVar('--accent')
   const card = cssVar('--card')
+  // 看不见的粗线：手指按在路线附近也能选中（首页长按路线打开那段交通）
+  ensureLayer(map, {
+    id: `${prefix}-route-hit`,
+    type: 'line',
+    source: `${prefix}-route`,
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: { 'line-color': '#000000', 'line-width': 26, 'line-opacity': 0.001 },
+  })
   // 白色衬底线（让路线在地图上更醒目），飞机段不加
   ensureLayer(map, {
     id: `${prefix}-route-casing`,

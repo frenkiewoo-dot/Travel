@@ -1,6 +1,8 @@
 // ============================================================
 // 选位置：搜索地址，或者在小地图上点一下 / 拖动图钉
 // 用在“自己添加酒店景点”和“添加城市”的表单里
+//   - localKm 有值（酒店景点表单）：只搜城市方圆 localKm 公里，按距离排序；找不到时可以搜索全部地区或去 Google Maps
+//   - localKm 不传（添加城市）：搜索全部地区
 // ============================================================
 
 // 引入 React 钩子
@@ -10,7 +12,7 @@ import { useMap } from '../map/useMap'
 // 引入图钉标记
 import { pinMarker } from '../map/markers'
 // 引入搜索
-import { reverseGeocode, searchPlaces, type SearchResult } from '../lib/search'
+import { bboxAround, distanceText, googleMapsSearchUrl, reverseGeocode, searchPlaces, type SearchResult } from '../lib/search'
 // 引入坐标类型
 import type { LngLat } from '../lib/geo'
 // 引入图标
@@ -37,6 +39,7 @@ export function LocationPicker({
   zoom = 13,
   onChange,
   placeholder = '搜索地址或地名',
+  localKm,
 }: {
   // 当前位置
   value: LngLat | null
@@ -48,7 +51,11 @@ export function LocationPicker({
   onChange: (loc: PickedLocation) => void
   // 搜索框提示文字
   placeholder?: string
+  // 只搜中心方圆多少公里（不传 = 全部地区）
+  localKm?: number
 }) {
+  // 是否扩大到全部地区（只在限定范围时有用）
+  const [searchAll, setSearchAll] = useState(false)
   // 搜索关键词
   const [query, setQuery] = useState('')
   // 搜索结果
@@ -77,8 +84,8 @@ export function LocationPicker({
     const t = setTimeout(async () => {
       setSearching(true)
       try {
-        // 搜索
-        setResults(await searchPlaces(query, near, ctrl.signal))
+        // 搜索：限定范围时只搜城市附近
+        setResults(await searchPlaces(query, { near, bbox: localKm && !searchAll ? bboxAround(near, localKm) : null }, ctrl.signal))
       } catch {
         // 出错就清空
         if (!ctrl.signal.aborted) setResults([])
@@ -91,7 +98,7 @@ export function LocationPicker({
       clearTimeout(t)
       ctrl.abort()
     }
-  }, [query, near])
+  }, [query, near, localKm, searchAll])
 
   // 在地图上点一下：设为位置，并查地址
   useEffect(() => {
@@ -159,15 +166,39 @@ export function LocationPicker({
         {/* 放大镜 */}
         <Icon name="search" size={16} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted" />
         {/* 输入框 */}
-        <input type="search" aria-label="搜索位置" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={placeholder} className={`${INPUT} pl-9`} />
+        <input
+          type="search"
+          aria-label="搜索位置"
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value)
+            setSearchAll(false)
+          }}
+          placeholder={placeholder}
+          className={`${INPUT} pl-9`}
+        />
       </div>
       {/* 搜索结果 */}
       {query.trim().length >= 2 && (
         <div className="mt-1 max-h-52 overflow-y-auto rounded-xl border border-line">
           {/* 搜索中 */}
           {searching && results.length === 0 && <p className="px-3 py-2 text-[13px] text-muted">正在搜索…</p>}
-          {/* 没结果 */}
-          {!searching && results.length === 0 && <p className="px-3 py-2 text-[13px] text-muted">没有找到，也可以直接在下面地图上点选</p>}
+          {/* 没结果：说明，并给出下一步 */}
+          {!searching && results.length === 0 && (
+            <div className="px-3 py-2 text-[13px] text-muted">
+              {localKm && !searchAll ? `这个城市附近没有找到。` : '没有找到。'}可以直接在下面小地图上点选位置，或者：
+              <span className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[12px]">
+                {localKm && !searchAll && (
+                  <button type="button" onClick={() => setSearchAll(true)} className="text-accent underline underline-offset-2">
+                    搜索全部地区
+                  </button>
+                )}
+                <a href={googleMapsSearchUrl(query, near)} target="_blank" rel="noopener noreferrer" className="text-accent underline underline-offset-2">
+                  在 Google Maps 里搜
+                </a>
+              </span>
+            </div>
+          )}
           {/* 结果 */}
           {results.map((r) => (
             <button key={r.id} type="button" onClick={() => choose(r)} className="block w-full border-b border-line px-3 py-2 text-left last:border-b-0">
@@ -176,8 +207,11 @@ export function LocationPicker({
                 {r.name}
                 {r.kind && <span className="ml-1.5 text-[12px] text-muted">{r.kind}</span>}
               </span>
-              {/* 地址 */}
-              <span className="block truncate text-[12px] text-muted">{r.address}</span>
+              {/* 地址 + 距离 */}
+              <span className="block truncate text-[12px] text-muted">
+                {localKm && r.distance !== undefined && <span className="tabular-nums">{distanceText(r.distance)} · </span>}
+                {r.address}
+              </span>
             </button>
           ))}
         </div>

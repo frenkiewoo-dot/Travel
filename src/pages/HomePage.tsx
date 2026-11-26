@@ -8,7 +8,7 @@
 // 引入 React 钩子
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 // 引入路由链接
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 // 引入 MapLibre 类型
 import type * as maplibregl from 'maplibre-gl'
 // 引入数据钩子
@@ -21,6 +21,8 @@ import { useMap } from '../map/useMap'
 import { cityMarker, poiMarker, useMeMarker } from '../map/markers'
 // 引入路线绘制
 import { drawTripRoute, uniqueCities } from '../map/tripRoute'
+// 引入长按路线
+import { LONG_PRESS_MS, useRouteLongPress } from '../map/routeLongPress'
 // 引入景点高亮
 import { highlightLandmarks } from '../map/layers'
 // 引入定位钩子
@@ -31,6 +33,8 @@ import { boundsOf, type LngLat } from '../lib/geo'
 import { computeSpans, dayLabel, routeStops } from '../lib/itinerary'
 // 引入国名
 import { countryLocalUpper } from '../lib/countries'
+// 引入横向拖动滑动
+import { useDragScroll } from '../lib/useDragScroll'
 // 引入图标
 import { Icon } from '../components/Icon'
 // 引入地图按钮
@@ -62,6 +66,8 @@ export default function HomePage() {
   const [geoDismissed, setGeoDismissed] = useState(false)
   // 底部卡片元素（用来量高度，给地图留白）
   const sheetRef = useRef<HTMLDivElement>(null)
+  // 景点小标签的横向拖动
+  const chipsDrag = useDragScroll<HTMLDivElement>()
   // 是否已经对准过路线（只在第一次自动对准）
   const fittedRef = useRef(false)
 
@@ -154,6 +160,11 @@ export default function HomePage() {
     overview(false)
   }, [map, cities, overview])
 
+  // 页面跳转
+  const navigate = useNavigate()
+  // 长按路线：打开那段交通（机票 / 车票和详细信息）
+  const press = useRouteLongPress(map, 'home-route-hit', (segId) => navigate(`/segment/${segId}`))
+
   // 画路线（样式每次重新加载后都要重画）
   useEffect(() => {
     // 地图样式还没加载或没有数据
@@ -241,6 +252,31 @@ export default function HomePage() {
           {/* 内层铺满：MapLibre 会给这个 div 加 position: relative，所以定位放在外层 */}
           <div ref={containerRef} className="h-full w-full" />
         </div>
+
+      {/* 长按路线时的圆圈：慢慢转满，转满就打开那段交通 */}
+      {press && data && (
+        <div className="pointer-events-none absolute z-20" style={{ left: press.x, top: press.y }}>
+          <svg width="64" height="64" viewBox="0 0 64 64" className="-translate-x-1/2 -translate-y-1/2" aria-hidden="true">
+            <circle cx="32" cy="32" r="26" fill="var(--glass)" stroke="var(--line-strong)" strokeWidth="3" />
+            <circle
+              cx="32"
+              cy="32"
+              r="26"
+              fill="none"
+              stroke="var(--accent)"
+              strokeWidth="4"
+              strokeLinecap="round"
+              strokeDasharray="164"
+              transform="rotate(-90 32 32)"
+              style={{ animation: press.firing ? undefined : `press-ring ${LONG_PRESS_MS}ms linear forwards`, strokeDashoffset: press.firing ? 0 : undefined }}
+            />
+          </svg>
+          {/* 是哪一段 */}
+          <div className="absolute top-9 left-1/2 -translate-x-1/2 rounded-full bg-ink px-3 py-1 text-[12px] whitespace-nowrap text-paper shadow-lg">
+            {press.firing ? '正在打开…' : segmentLabel(press.segId, data.stops, data.segments)}
+          </div>
+        </div>
+      )}
 
       {/* 顶部：左边旅行名和状态，右边两个按钮 */}
       <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 px-4 pt-[max(env(safe-area-inset-top),16px)]">
@@ -331,7 +367,7 @@ export default function HomePage() {
             </Link>
             {/* 展开时显示景点列表 */}
             {sheetOpen && (
-              <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 pb-1">
+              <div ref={chipsDrag} className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 pb-1">
                 {/* 这个城市的景点 */}
                 {landmarks
                   .filter((p) => p.stopId === focused.id)
@@ -362,39 +398,19 @@ export default function HomePage() {
                 本次旅行
               </Link>
             </div>
-            {/* 展开时显示城市卡片 */}
+            {/* 提示：长按路线 */}
+            {sheetOpen && data.segments.length > 0 && <p className="-mt-1 text-[11px] text-muted">长按地图上的路线，可以直接打开那段机票 / 车票和详细信息</p>}
+            {/* 展开时显示城市卡片（可以左右滑动 / 用鼠标拖动） */}
             {sheetOpen && (
-              <div className="no-scrollbar -mx-5 flex gap-2.5 overflow-x-auto px-5 pb-1">
-                {/* 每个住宿城市一张卡片 */}
-                {spans.map(({ stop, arriveDay, departDay }) => {
-                  // 这个城市的酒店有没有已预订的
-                  const booked = data.places.some((p) => p.stopId === stop.id && p.category === 'hotel' && p.status === 'booked')
-                  // 有没有已选定的
-                  const selected = data.places.some((p) => p.stopId === stop.id && p.category === 'hotel' && p.status === 'selected')
-                  // 卡片
-                  return (
-                    <button
-                      // 唯一 key
-                      key={stop.id}
-                      // 点击：飞到这个城市
-                      onClick={() => focusCity(stop)}
-                      // 卡片样式
-                      className="flex min-w-[148px] flex-1 flex-col items-start gap-1 rounded-2xl border border-line bg-paper/60 p-3 text-left"
-                    >
-                      {/* 城市名 */}
-                      <span className="font-serif text-[21px] leading-none font-medium">{stop.name}</span>
-                      {/* 天数 */}
-                      <span className="text-[12px] text-muted">
-                        {spanText(arriveDay, departDay, itin.days)} · {stop.nights}晚
-                      </span>
-                      {/* 住宿状态 */}
-                      <span className={`mt-0.5 rounded-full px-2 py-0.5 text-[11px] ${booked ? 'bg-sage-soft text-sage' : selected ? 'bg-oat text-ink' : 'bg-accent-soft text-accent'}`}>
-                        {booked ? '住宿已订' : selected ? '住宿已选定' : '住宿未订'}
-                      </span>
-                    </button>
-                  )
-                })}
-              </div>
+              <CityStrip
+                cards={spans.map(({ stop, arriveDay, departDay }) => ({
+                  stop,
+                  when: `${spanText(arriveDay, departDay, itin.days)} · ${stop.nights}晚`,
+                  booked: data.places.some((p) => p.stopId === stop.id && p.category === 'hotel' && p.status === 'booked'),
+                  selected: data.places.some((p) => p.stopId === stop.id && p.category === 'hotel' && p.status === 'selected'),
+                }))}
+                onPick={focusCity}
+              />
             )}
           </div>
         )}
@@ -406,6 +422,109 @@ export default function HomePage() {
   )
 }
 
+
+// 城市卡片横条：每张卡片约半屏宽，露出下一张的一部分；左右滑动（电脑上可以拖动、滚轮、点 ‹ ›）；下面的小圆点表示现在看到第几张
+function CityStrip({
+  cards,
+  onPick,
+}: {
+  // 每个城市：城市、日期文字、住宿状态
+  cards: { stop: Stop; when: string; booked: boolean; selected: boolean }[]
+  // 点卡片
+  onPick: (s: Stop) => void
+}) {
+  // 鼠标拖动
+  const drag = useDragScroll<HTMLDivElement>()
+  // 滚动容器
+  const box = useRef<HTMLDivElement | null>(null)
+  // 同时记住元素、接上拖动（用 useCallback 保持不变，否则每次重新渲染都会打断正在进行的拖动）
+  const setBox = useCallback(
+    (el: HTMLDivElement | null) => {
+      box.current = el
+      drag(el)
+    },
+    [drag],
+  )
+  // 看得到的第一张、最后一张
+  const [view, setView] = useState({ first: 0, last: 1 })
+  // 根据滚动位置算出看得到哪几张
+  const update = () => {
+    const el = box.current
+    const card = el?.firstElementChild as HTMLElement | null
+    if (!el || !card) return
+    // 每张卡片占的宽度（含间距 10px）
+    const w = card.offsetWidth + 10
+    const first = Math.round(el.scrollLeft / w)
+    setView({ first, last: Math.min(cards.length - 1, first + Math.max(1, Math.floor((el.clientWidth + 10) / w)) - 1) })
+  }
+  // 往左 / 往右翻一张
+  const step = (d: number) => {
+    const el = box.current
+    const card = el?.firstElementChild as HTMLElement | null
+    if (el && card) el.scrollBy({ left: d * (card.offsetWidth + 10), behavior: 'smooth' })
+  }
+  // 卡片数量变化时重新算
+  useEffect(update, [cards.length])
+  // 返回
+  return (
+    <div>
+      {/* 标题行：几个城市 + 翻页按钮 */}
+      <div className="mb-1.5 flex items-center justify-between">
+        <span className="text-[12px] text-muted">
+          {cards.length} 个城市{cards.length > 2 && ' · 左右滑动查看'}
+        </span>
+        {cards.length > 2 && (
+          <span className="flex gap-1">
+            <button aria-label="上一个城市" disabled={view.first === 0} onClick={() => step(-1)} className="flex h-8 w-8 items-center justify-center rounded-full border border-line-strong disabled:opacity-30">
+              <Icon name="back" size={14} />
+            </button>
+            <button aria-label="下一个城市" disabled={view.last >= cards.length - 1} onClick={() => step(1)} className="flex h-8 w-8 items-center justify-center rounded-full border border-line-strong disabled:opacity-30">
+              <Icon name="chevronRight" size={14} />
+            </button>
+          </span>
+        )}
+      </div>
+      {/* 卡片 */}
+      <div ref={setBox} onScroll={update}
+        className="no-scrollbar -mx-5 flex snap-x snap-mandatory gap-2.5 overflow-x-auto scroll-px-5 px-5 pb-1 select-none"
+      >
+        {cards.map(({ stop, when, booked, selected }) => (
+          <button
+            key={stop.id}
+            onClick={() => onPick(stop)}
+            className="flex w-[44%] min-w-[150px] shrink-0 snap-start flex-col items-start gap-1 rounded-2xl border border-line bg-paper/60 p-3 text-left"
+          >
+            {/* 城市名 */}
+            <span className="w-full truncate font-serif text-[21px] leading-none font-medium">{stop.name}</span>
+            {/* 日期和住几晚 */}
+            <span className="text-[12px] text-muted">{when}</span>
+            {/* 住宿状态 */}
+            <span className={`mt-0.5 rounded-full px-2 py-0.5 text-[11px] ${booked ? 'bg-sage-soft text-sage' : selected ? 'bg-oat text-ink' : 'bg-accent-soft text-accent'}`}>
+              {booked ? '住宿已订' : selected ? '住宿已选定' : '住宿未订'}
+            </span>
+          </button>
+        ))}
+        {/* 末尾留白：最后一张也能滑到左边 */}
+        <span className="w-1 shrink-0" aria-hidden="true" />
+      </div>
+      {/* 小圆点：深色的是现在看到的 */}
+      {cards.length > 2 && (
+        <div className="mt-1.5 flex justify-center gap-1" aria-hidden="true">
+          {cards.map((c, i) => (
+            <span key={c.stop.id} className={`h-1.5 rounded-full transition-all ${i >= view.first && i <= view.last ? 'w-3 bg-ink' : 'w-1.5 bg-line-strong'}`} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// 交通段的名字，例如 “København → Stockholm”
+function segmentLabel(segId: string, stops: Stop[], segments: { id: string; fromStopId: string; toStopId: string }[]): string {
+  const seg = segments.find((s) => s.id === segId)
+  const name = (id?: string) => stops.find((s) => s.id === id)?.name ?? ''
+  return seg ? `${name(seg.fromStopId)} → ${name(seg.toStopId)}` : ''
+}
 
 // 一组点的中心
 function centerOf(pts: LngLat[]): LngLat {
