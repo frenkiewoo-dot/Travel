@@ -1,7 +1,7 @@
 // ============================================================
 // 初始数据：第一次打开 App 时写进手机
 // 注意：这里只放公开信息（城市、景点坐标），不放任何个人数据
-// 景点等推荐信息在后面的“调研”步骤里会补充完整
+// 推荐青旅和景点的完整清单在 data/content.ts 的 RECOMMENDED_PLACES，App 启动时合并进来
 // ============================================================
 
 // 引入数据结构
@@ -55,7 +55,7 @@ export function buildSeed() {
     booked: false,
   }))
 
-  // 几个著名景点（公开坐标；完整的推荐清单在后面的调研步骤补充）
+  // 几个著名景点（公开坐标；详情和完整的推荐清单见 data/content.ts，启动时合并）
   const places: Place[] = [
     // 柏林中央火车站
     { id: 'pl-ber-hbf', tripId: TRIP_ID, stopId: 'stop-berlin', category: 'station', name: 'Berlin Hauptbahnhof', nameZh: '柏林中央火车站', lat: 52.5251, lng: 13.3694, status: 'candidate', source: 'recommended' },
