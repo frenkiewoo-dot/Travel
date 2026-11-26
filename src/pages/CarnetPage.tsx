@@ -32,12 +32,17 @@ import { MODE_ICON } from './SegmentPage'
 // 引入加载画面
 import { Loading } from './HomePage'
 
-// 页面组件
+// 页面组件：当前旅行的手册
 export default function CarnetPage() {
+  return <Carnet />
+}
+
+// 旅行手册内容；tripId 不传就是当前旅行；embedded = 嵌在别的页面里（例如「已删除的旅行」详情），不显示返回和打印按钮、链接不能点
+export function Carnet({ tripId, embedded }: { tripId?: string; embedded?: boolean }) {
   // 页面跳转
   const navigate = useNavigate()
-  // 当前旅行的数据
-  const data = useTripData()
+  // 旅行数据
+  const data = useTripData(tripId)
   // 每天概况
   const itin = useItinerary(data)
   // 照片概况
@@ -69,11 +74,13 @@ export default function CarnetPage() {
 
   // 页面内容
   return (
-    <div className="print-flow h-full overflow-y-auto bg-paper px-5 pt-[max(env(safe-area-inset-top),12px)] pb-14">
+    <div className={embedded ? 'pointer-events-none' : 'print-flow h-full overflow-y-auto bg-paper px-5 pt-[max(env(safe-area-inset-top),12px)] pb-14'}>
       {/* 返回 */}
-      <button aria-label="返回" onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))} className="no-print -ml-3 flex h-11 w-11 items-center justify-center">
-        <Icon name="back" size={22} />
-      </button>
+      {!embedded && (
+        <button aria-label="返回" onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))} className="no-print -ml-3 flex h-11 w-11 items-center justify-center">
+          <Icon name="back" size={22} />
+        </button>
+      )}
 
       {/* ===== 封面 ===== */}
       <div className="font-serif text-[16px] italic text-muted">Carnet de voyage</div>
@@ -96,7 +103,7 @@ export default function CarnetPage() {
         </div>
       )}
       {/* 按钮 */}
-      <div className="no-print mt-4 flex gap-2">
+      <div className={`no-print mt-4 flex gap-2 ${embedded ? 'hidden' : ''}`}>
         <button onClick={() => window.print()} className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl bg-ink text-[14px] text-paper">
           <Icon name="download" size={16} />
           打印 / 存成 PDF

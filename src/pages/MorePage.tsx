@@ -6,6 +6,9 @@
 import { useEffect, useState } from 'react'
 // 引入路由链接
 import { Link } from 'react-router-dom'
+// 引入实时查询和数据库
+import { useLiveQuery } from 'dexie-react-hooks'
+import { db } from '../db/db'
 // 引入主题工具
 import { setThemePref, useThemePref, type ThemePref } from '../lib/theme'
 // 引入图标
@@ -24,6 +27,7 @@ const PLAN: { step: number; title: string; done: boolean }[] = [
   { step: 7, title: '推荐青旅和景点、圣诞期间开放情况', done: true },
   { step: 8, title: '使用说明、电脑上测试、交付', done: true },
   { step: 9, title: '相册、多次旅行、旅行手册', done: true },
+  { step: 10, title: '天气、汇率换算、市内交通查路线、长按路线、已删除的旅行', done: true },
 ]
 
 // 主题选项
@@ -39,6 +43,8 @@ export default function MorePage() {
   const pref = useThemePref()
   // 上次备份时间
   const lastBackup = useLastBackup()
+  // 已删除的旅行数量
+  const trashCount = useLiveQuery(async () => (await db.trips.toArray()).filter((t) => t.deletedAt).length)
   // 是否已获得持久存储
   const [persisted, setPersisted] = useState<boolean | null>(null)
 
@@ -124,6 +130,18 @@ export default function MorePage() {
         </span>
         <span className={`flex items-center gap-1 text-[12px] ${!lastBackup || Date.now() - lastBackup > 7 * 86400000 ? 'text-accent' : 'text-muted'}`}>
           {backupAgeText(lastBackup)}
+          <Icon name="chevronRight" size={15} />
+        </span>
+      </Link>
+
+      {/* 已删除的旅行 */}
+      <Link to="/trash" className="mt-3 flex items-center justify-between rounded-2xl border border-line bg-card p-4">
+        <span className="flex items-center gap-2 text-[15px] font-semibold">
+          <Icon name="trash" size={17} />
+          已删除的旅行
+        </span>
+        <span className="flex items-center gap-1 text-[12px] text-muted">
+          {trashCount ? `${trashCount} 次旅行 · 可恢复` : '没有'}
           <Icon name="chevronRight" size={15} />
         </span>
       </Link>

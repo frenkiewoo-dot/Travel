@@ -2,14 +2,14 @@
 // 我的旅行（/trips）：所有旅行的列表
 //   - 每次旅行一张卡片：封面（有照片就用照片）、名称、日期、城市、照片张数
 //   - 切换“当前旅行”（首页、今日旅程、票夹、预算都跟着换）
-//   - 新建旅行（例如明年去意大利）；删除不需要的旅行
+//   - 新建旅行（例如明年去意大利）；删除不需要的旅行（先放进「已删除的旅行」，可以恢复）
 //   - 以前的旅行和照片都保留，随时可以回来看
 // ============================================================
 
 // 引入 React 钩子
 import { useState } from 'react'
 // 引入路由
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 // 引入实时查询
 import { useLiveQuery } from 'dexie-react-hooks'
 // 引入数据库
@@ -61,8 +61,10 @@ export default function TripsPage() {
   // 加载中
   if (!rows) return null
 
-  // 排序：日期待定的在最前（正在计划），其余按出发日期从新到旧
-  const sorted = [...rows].sort((a, b) => {
+  // 已删除的旅行数量
+  const trashCount = rows.filter((r) => r.trip.deletedAt).length
+  // 排序：日期待定的在最前（正在计划），其余按出发日期从新到旧；已删除的不显示
+  const sorted = rows.filter((r) => !r.trip.deletedAt).sort((a, b) => {
     // 没有日期的排前面
     if (!a.trip.startDate || !b.trip.startDate) return (a.trip.startDate ? 1 : 0) - (b.trip.startDate ? 1 : 0)
     // 新的在前
@@ -103,16 +105,26 @@ export default function TripsPage() {
               navigate('/')
             }}
             onDelete={async () => {
-              // 照片张数
-              const n = r.stops.reduce((sum, s) => sum + (photos?.get(s.id)?.count ?? 0), 0)
-              // 确认
-              if (!window.confirm(`删除旅行「${r.trip.name}」？它的城市、酒店景点、日程、车票、花费${n ? `和 ${n} 张照片` : ''}都会删除，找不回来。建议先导出备份。`)) return
-              // 删除
+              // 确认（误按时还能取消）
+              if (!window.confirm(`你确定要删除此次旅行的全部内容吗？\n\n「${r.trip.name}」会放进「更多 → 已删除的旅行」，在那里可以恢复，也可以彻底删除。`)) return
+              // 删除（放进已删除的旅行）
               await deleteTrip(r.trip.id)
             }}
           />
         ))}
       </div>
+
+      {/* 没有旅行 */}
+      {sorted.length === 0 && <p className="rounded-2xl bg-oat p-4 text-[13px] text-muted">还没有旅行。点右上角「新建旅行」开始计划。</p>}
+
+      {/* 已删除的旅行 */}
+      <Link to="/trash" className="mt-6 flex items-center justify-between rounded-2xl border border-dashed border-line-strong px-4 py-3 text-[13px]">
+        <span className="flex items-center gap-2 text-muted">
+          <Icon name="trash" size={15} />
+          已删除的旅行{trashCount > 0 ? `（${trashCount}）` : ''}
+        </span>
+        <Icon name="chevronRight" size={14} className="text-muted" />
+      </Link>
 
       {/* 新建 */}
       {creating && (
@@ -180,12 +192,10 @@ function TripCard({ row, active, photos, onOpen, onDelete }: { row: TripRow; act
         <div className="mt-3 flex items-center justify-between gap-2">
           <span className="text-[12px] text-muted">{photoCount ? `${photoCount} 张照片` : '还没有照片'}</span>
           <span className="flex items-center gap-2">
-            {/* 不是当前旅行才能删 */}
-            {!active && (
-              <button onClick={onDelete} className="h-9 px-2 text-[12px] text-muted underline underline-offset-2">
-                删除
-              </button>
-            )}
+            {/* 删除（会先确认，放进已删除的旅行） */}
+            <button onClick={onDelete} className="h-9 px-2 text-[12px] text-muted underline underline-offset-2">
+              删除
+            </button>
             <button onClick={onOpen} className={`flex h-9 items-center gap-1 rounded-full px-3.5 text-[13px] ${active ? 'border border-line-strong' : 'bg-ink text-paper'}`}>
               {active ? '打开' : '切换到这次'}
               <Icon name="chevronRight" size={14} />

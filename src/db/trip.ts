@@ -58,8 +58,37 @@ export async function createTrip(opts: {
   return tripId
 }
 
-// 删除一次旅行和它的全部数据（城市、交通、酒店景点、日程、车票、花费、照片）
+// 删除一次旅行：先放进「已删除的旅行」（数据都还在，可以恢复）
 export async function deleteTrip(tripId: string): Promise<void> {
+  // 一次性完成
+  await db.transaction('rw', [db.trips, db.settings], async () => {
+    // 标记删除时间
+    await db.trips.update(tripId, { deletedAt: Date.now() })
+    // 删的是当前旅行：换成另一个没删的旅行
+    const active = (await db.settings.get(ACTIVE_TRIP_KEY))?.value
+    if (active === tripId) {
+      const next = (await db.trips.toArray()).filter((t) => !t.deletedAt).sort((a, b) => b.updatedAt - a.updatedAt)[0]
+      if (next) await db.settings.put({ key: ACTIVE_TRIP_KEY, value: next.id })
+      else await db.settings.delete(ACTIVE_TRIP_KEY)
+    }
+  })
+}
+
+// 从「已删除的旅行」恢复
+export async function restoreTrip(tripId: string): Promise<void> {
+  // 一次性完成
+  await db.transaction('rw', [db.trips, db.settings], async () => {
+    // 去掉删除标记
+    await db.trips.update(tripId, { deletedAt: undefined, updatedAt: Date.now() })
+    // 现在没有当前旅行：就用恢复的这个
+    const active = (await db.settings.get(ACTIVE_TRIP_KEY))?.value as string | undefined
+    const activeTrip = active ? await db.trips.get(active) : undefined
+    if (!activeTrip || activeTrip.deletedAt) await db.settings.put({ key: ACTIVE_TRIP_KEY, value: tripId })
+  })
+}
+
+// 彻底删除一次旅行和它的全部数据（城市、交通、酒店景点、日程、车票、花费、照片），找不回来
+export async function purgeTrip(tripId: string): Promise<void> {
   // 一次性完成
   await db.transaction('rw', [db.trips, db.stops, db.segments, db.places, db.dayPlans, db.tickets, db.ticketFiles, db.expenses, db.photos, db.settings], async () => {
     // 车票文件（按车票删）

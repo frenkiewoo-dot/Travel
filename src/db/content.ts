@@ -112,12 +112,13 @@ const CITY_RADIUS_M = 15000
 // 合并推荐青旅和景点（启动时、在「本次旅行」里改了城市后都会调用）
 export async function mergePlaces(): Promise<void> {
   // 用事务一次性完成
-  await db.transaction('rw', [db.places, db.stops, db.settings], async () => {
+  await db.transaction('rw', [db.places, db.stops, db.settings, db.trips], async () => {
     // 已经加过的推荐地点（第一次合并时，初始数据里的地点算已经加过）
     const saved = (await db.settings.get(SEEN_KEY))?.value as string[] | undefined
     const seen = new Set<string>(saved ?? SEED_PLACE_IDS)
-    // 所有城市
-    const allStops = await db.stops.toArray()
+    // 所有城市（已删除的旅行不处理）
+    const deleted = new Set((await db.trips.toArray()).filter((t) => t.deletedAt).map((t) => t.id))
+    const allStops = (await db.stops.toArray()).filter((s) => !deleted.has(s.tripId))
     // 所有地点（按 ID 查找）
     const places = await db.places.toArray()
     const byId = new Map(places.map((p) => [p.id, p]))

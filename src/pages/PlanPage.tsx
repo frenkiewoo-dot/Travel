@@ -16,7 +16,7 @@ import { useItinerary, useTripData, type TripData } from '../db/hooks'
 // 引入数据结构
 import type { Place, Segment, Stop, StopKind, Ticket } from '../db/schema'
 // 引入数据操作
-import { saveStops, updateTrip } from '../db/trip'
+import { deleteTrip, saveStops, updateTrip } from '../db/trip'
 // 引入推荐地点合并（新加城市后自动带上推荐）
 import { mergePlaces } from '../db/content'
 // 引入车票工具
@@ -237,6 +237,18 @@ export default function PlanPage() {
         <Field label="出行人数" group>
           <Stepper value={trip.travelers} min={1} max={12} unit="人" onChange={(n) => updateTrip(trip.id, { travelers: n })} />
         </Field>
+        {/* 删除整次旅行（先确认；放进「已删除的旅行」，可以恢复） */}
+        <button
+          onClick={async () => {
+            if (!window.confirm(`你确定要删除此次旅行的全部内容吗？\n\n「${trip.name}」会放进「更多 → 已删除的旅行」，在那里可以恢复，也可以彻底删除。`)) return
+            await deleteTrip(trip.id)
+            navigate('/trips')
+          }}
+          className="mt-4 flex h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-accent text-[14px] text-accent"
+        >
+          <Icon name="trash" size={15} />
+          删除这次旅行
+        </button>
       </details>
 
       {/* ===== 行程（按时间顺序） ===== */}

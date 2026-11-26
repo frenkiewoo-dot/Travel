@@ -27,6 +27,10 @@ import TicketPage from './pages/TicketPage'
 import GuidePage from './pages/GuidePage'
 import TripsPage from './pages/TripsPage'
 import CarnetPage from './pages/CarnetPage'
+import TrashPage, { TrashDetailPage } from './pages/TrashPage'
+import { NoTripPage } from './pages/NoTripPage'
+// 引入“有没有旅行”
+import { useHasTrips } from './db/hooks'
 
 // App 组件
 export default function App() {
@@ -44,6 +48,10 @@ function Shell() {
   const location = useLocation()
   // 导航页全屏显示，不要底部导航栏
   const hideNav = location.pathname.startsWith('/nav')
+  // 有没有旅行（全都删除了的话，大部分页面没有内容可显示）
+  const hasTrips = useHasTrips()
+  // 没有旅行时也能打开的页面
+  const noTripOk = ['/trips', '/trash', '/more', '/backup', '/guide', '/links'].some((p) => location.pathname.startsWith(p))
   // 返回结构
   return (
     <>
@@ -51,6 +59,10 @@ function Shell() {
       <div className="flex h-full flex-col">
         {/* 页面区域：占满剩余空间 */}
         <main className="relative min-h-0 flex-1">
+          {/* 一个旅行都没有：显示提示（新建 / 已删除的旅行 / 从备份恢复） */}
+          {hasTrips === false && !noTripOk ? (
+            <NoTripPage />
+          ) : (
           <Routes>
             {/* 首页：大地图 */}
             <Route path="/" element={<HomePage />} />
@@ -90,9 +102,13 @@ function Shell() {
             <Route path="/trips" element={<TripsPage />} />
             {/* 旅行手册 */}
             <Route path="/carnet" element={<CarnetPage />} />
+            {/* 已删除的旅行 */}
+            <Route path="/trash" element={<TrashPage />} />
+            <Route path="/trash/:id" element={<TrashDetailPage />} />
             {/* 其他未知网址：回首页 */}
             <Route path="*" element={<HomePage />} />
           </Routes>
+          )}
         </main>
         {/* 底部导航（导航页不显示） */}
         {!hideNav && <BottomNav />}

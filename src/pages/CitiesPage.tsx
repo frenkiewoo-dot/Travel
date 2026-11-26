@@ -77,8 +77,11 @@ export default function CitiesPage() {
     const stops = (await db.stops.bulkGet(ids)).filter((s): s is Stop => !!s && s.tripId !== data?.trip.id)
     // 旅行名称
     const trips = await db.trips.bulkGet([...new Set(stops.map((s) => s.tripId))])
-    // 返回城市和它所在旅行的名称
-    return stops.map((s) => ({ stop: s, tripName: trips.find((t) => t?.id === s.tripId)?.name ?? '' }))
+    // 返回城市和它所在旅行的名称（已删除的旅行不算）
+    return stops
+      .map((s) => ({ stop: s, trip: trips.find((t) => t?.id === s.tripId) }))
+      .filter((x) => x.trip && !x.trip.deletedAt)
+      .map((x) => ({ stop: x.stop, tripName: x.trip!.name }))
   }, [photos, data?.trip.id])
 
   // 加载中

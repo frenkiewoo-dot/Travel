@@ -18,8 +18,8 @@ export function useTripData(forTripId?: string) {
   return useLiveQuery(async () => {
     // 读取“当前旅行”设置
     const setting = await db.settings.get(ACTIVE_TRIP_KEY)
-    // 指定的优先，其次设置里的，否则取第一个旅行
-    const tripId = forTripId ?? (setting?.value as string | undefined) ?? (await db.trips.toCollection().first())?.id
+    // 指定的优先，其次设置里的（已删除的不算），否则取第一个没删的旅行
+    const tripId = forTripId ?? (await activeTripId(setting?.value as string | undefined))
     // 一个旅行都没有
     if (!tripId) return null
     // 同时读取这次旅行的各类数据
@@ -49,7 +49,21 @@ export function useTripData(forTripId?: string) {
 // 读取“当前旅行”的 ID
 export function useActiveTripId() {
   // 实时查询设置
-  return useLiveQuery(async () => ((await db.settings.get(ACTIVE_TRIP_KEY))?.value as string | undefined) ?? (await db.trips.toCollection().first())?.id)
+  return useLiveQuery(async () => activeTripId((await db.settings.get(ACTIVE_TRIP_KEY))?.value as string | undefined))
+}
+
+// 当前旅行的 ID：设置里的那个（没被删除时），否则第一个没删的旅行；一个都没有就是 undefined
+async function activeTripId(saved: string | undefined): Promise<string | undefined> {
+  // 设置里的旅行还在、没被删
+  const t = saved ? await db.trips.get(saved) : undefined
+  if (t && !t.deletedAt) return t.id
+  // 否则找一个没删的
+  return (await db.trips.toArray()).find((x) => !x.deletedAt)?.id
+}
+
+// 有没有正常的（没删除的）旅行；加载中是 undefined
+export function useHasTrips() {
+  return useLiveQuery(async () => (await db.trips.toArray()).some((t) => !t.deletedAt))
 }
 
 // 行程数据的类型（从上面的钩子推导出来）
