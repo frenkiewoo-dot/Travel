@@ -6,8 +6,8 @@
 // ============================================================
 
 // 当前数据结构的版本号（导出备份时也会写进文件，导入时用来判断要不要迁移）
-// 版本历史：1 = 初版；2 = 加入票夹（tickets、ticketFiles 两张表）
-export const SCHEMA_VERSION = 2
+// 版本历史：1 = 初版；2 = 加入票夹（tickets、ticketFiles 两张表）；3 = 加入预算（expenses 表）
+export const SCHEMA_VERSION = 3
 
 // 所有记录的 ID 都是字符串
 export type ID = string
@@ -30,6 +30,8 @@ export interface Trip {
   startDateHint?: string
   // 统一显示用的货币（预算换算成这个）
   baseCurrency: 'EUR'
+  // 预算（欧元）：总额和每个分类的计划，都可以不填、随时改
+  budget?: { total?: number; byCategory?: Partial<Record<ExpenseCategory, number>> }
   // 创建时间（毫秒时间戳）
   createdAt: number
   // 最后修改时间
@@ -289,6 +291,34 @@ export interface TicketFile {
   page?: number
   // 顺序
   order: number
+}
+
+// ---------- 预算 ----------
+
+// 支持的货币
+export type Currency = 'EUR' | 'DKK' | 'SEK' | 'NOK'
+
+// 花费分类：交通 / 住宿 / 餐饮 / 门票 / 购物 / 其他
+export type ExpenseCategory = 'transport' | 'lodging' | 'food' | 'tickets' | 'shopping' | 'other'
+
+// 一笔花费
+export interface Expense {
+  // 唯一 ID
+  id: ID
+  // 属于哪次旅行
+  tripId: ID
+  // 分类
+  category: ExpenseCategory
+  // 金额（原币种）
+  amount: number
+  // 币种
+  currency: Currency
+  // 日期 'YYYY-MM-DD'
+  date: string
+  // 备注，例如 “Tivoli 门票”
+  note?: string
+  // 创建时间
+  createdAt: number
 }
 
 // ---------- 路线缓存 ----------

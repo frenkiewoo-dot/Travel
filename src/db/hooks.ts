@@ -22,7 +22,7 @@ export function useTripData() {
     // 一个旅行都没有
     if (!tripId) return null
     // 同时读取这次旅行的各类数据
-    const [trip, stops, segments, places, dayPlans, tickets] = await Promise.all([
+    const [trip, stops, segments, places, dayPlans, tickets, expenses] = await Promise.all([
       // 旅行本身
       db.trips.get(tripId),
       // 地点（按顺序）
@@ -35,11 +35,13 @@ export function useTripData() {
       db.dayPlans.where('tripId').equals(tripId).toArray(),
       // 车票（只有文字信息，文件另外按需读取）
       db.tickets.where('tripId').equals(tripId).toArray(),
+      // 花费
+      db.expenses.where('tripId').equals(tripId).toArray(),
     ])
     // 旅行被删了
     if (!trip) return null
     // 返回所有数据
-    return { trip, stops, segments, places, dayPlans, tickets }
+    return { trip, stops, segments, places, dayPlans, tickets, expenses }
   })
 }
 
