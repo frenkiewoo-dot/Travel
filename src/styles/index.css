@@ -109,8 +109,8 @@
 html,
 body,
 #root {
-  /* 占满整个屏幕高度 */
-  height: 100%;
+  /* 占满整个屏幕高度（iPhone 主屏幕全屏模式下用 --app-h：屏幕的真实高度，见 lib/appHeight.ts） */
+  height: var(--app-h, 100%);
 }
 
 body {
@@ -130,6 +130,12 @@ body {
   -webkit-tap-highlight-color: transparent;
   /* 禁止整个页面的橡皮筋回弹（像原生 App） */
   overscroll-behavior: none;
+}
+
+/* iPhone 主屏幕全屏模式：弹出面板、全屏车票等“铺满屏幕”的元素以 App 为准（App 已经是屏幕的真实高度） */
+html.ios-standalone #root {
+  overflow: hidden;
+  transform: translateZ(0);
 }
 
 /* ===== 在电脑上打开：App 显示成屏幕中间一个手机宽度的窗口 =====

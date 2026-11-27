@@ -20,6 +20,11 @@ import { ensureSeeded, requestPersistentStorage } from './db/db'
 import { applyContent } from './db/content'
 // 引入 App
 import App from './App'
+// 引入 iPhone 全屏模式的高度修正
+import { setupAppHeight } from './lib/appHeight'
+
+// 先修正 iPhone 全屏模式的高度（在显示任何内容之前）
+setupAppHeight()
 
 // 启动函数
 async function start() {

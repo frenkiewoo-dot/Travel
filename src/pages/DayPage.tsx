@@ -304,12 +304,12 @@ export default function DayPage({ today = false }: { today?: boolean }) {
           <button
             aria-label="返回"
             onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))}
-            className="pointer-events-auto flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line bg-glass shadow-[0_2px_10px_var(--shadow)] backdrop-blur"
+            className="pointer-events-auto flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line bg-card shadow-[0_2px_10px_var(--shadow)]"
           >
             <Icon name="back" size={20} />
           </button>
           {/* 标题胶囊 */}
-          <div className="pointer-events-auto flex h-11 min-w-0 items-center gap-2 rounded-full border border-line bg-glass px-4 shadow-[0_2px_10px_var(--shadow)] backdrop-blur">
+          <div className="pointer-events-auto flex h-11 min-w-0 items-center gap-2 rounded-full border border-line bg-card px-4 shadow-[0_2px_10px_var(--shadow)]">
             {/* 城市名（衬线） */}
             <span className="font-serif text-[19px] font-medium">{day.stop.name}</span>
             {/* 第几天 */}

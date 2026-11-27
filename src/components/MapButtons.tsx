@@ -12,7 +12,7 @@ import { Icon } from './Icon'
 import type { LngLat } from '../lib/geo'
 
 // 圆形按钮的公共样式：44 像素（手指好点）、半透明卡片底、细描边、轻阴影
-const ROUND = 'flex h-11 w-11 items-center justify-center rounded-full border border-line bg-glass text-ink shadow-[0_2px_10px_var(--shadow)] backdrop-blur'
+const ROUND = 'flex h-11 w-11 items-center justify-center rounded-full border border-line bg-card text-ink shadow-[0_2px_10px_var(--shadow)]'
 
 // 按钮组组件
 export function MapButtons({

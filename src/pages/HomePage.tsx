@@ -9,6 +9,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 // 引入路由链接
 import { Link, useNavigate } from 'react-router-dom'
+// 引入实时查询和数据库（记住“长按提示”是否已经用过）
+import { useLiveQuery } from 'dexie-react-hooks'
+import { db } from '../db/db'
 // 引入 MapLibre 类型
 import type * as maplibregl from 'maplibre-gl'
 // 引入数据钩子
@@ -60,6 +63,11 @@ export default function HomePage() {
   useMeMarker(map, geo.position)
   // 当前聚焦的城市（null = 全览）
   const [focusId, setFocusId] = useState<string | null>(null)
+  // 同一个值放在 ref 里（地图事件、尺寸变化的回调里读最新值）
+  const focusIdRef = useRef<string | null>(null)
+  focusIdRef.current = focusId
+  // 用户自己动过地图（拖、缩放、旋转）之后，就不再自动调整视角
+  const userMovedRef = useRef(false)
   // 底部卡片是否展开
   const [sheetOpen, setSheetOpen] = useState(true)
   // 是否关掉了定位错误提示
@@ -93,6 +101,7 @@ export default function HomePage() {
       if (!map || cities.length === 0) return
       // 取消聚焦
       setFocusId(null)
+      focusIdRef.current = null
       // 算出能装下所有城市的视角
       const cam = map.cameraForBounds(boundsOf(cities.map((c) => [c.lng, c.lat] as LngLat)), { padding: padding() })
       // 算不出来就算了
@@ -114,6 +123,7 @@ export default function HomePage() {
       if (!map) return
       // 记录聚焦的城市
       setFocusId(stop.id)
+      focusIdRef.current = stop.id
       // 这个城市的景点
       const pts = landmarks.filter((p) => p.stopId === stop.id).map((p) => [p.lng, p.lat] as LngLat)
       // 有景点就以景点的中心为目标，否则用城市中心
@@ -160,10 +170,56 @@ export default function HomePage() {
     overview(false)
   }, [map, cities, overview])
 
+  // 记下“用户自己动过地图”（程序调用的移动没有 originalEvent，不算）
+  useEffect(() => {
+    if (!map) return
+    const mark = (e: { originalEvent?: unknown }) => {
+      if (e.originalEvent) userMovedRef.current = true
+    }
+    map.on('dragstart', mark)
+    map.on('zoomstart', mark)
+    map.on('rotatestart', mark)
+    map.on('pitchstart', mark)
+    return () => {
+      map.off('dragstart', mark)
+      map.off('zoomstart', mark)
+      map.off('rotatestart', mark)
+      map.off('pitchstart', mark)
+    }
+  }, [map])
+
+  // 地图尺寸或底部卡片高度变化时（例如 iPhone 全屏模式刚打开时高度会变、卡片内容刚加载完），
+  // 重新对准整条路线，让路线始终在卡片上方看得到的地方；用户自己动过地图或在看某个城市时不调整
+  useEffect(() => {
+    if (!map) return
+    let t: ReturnType<typeof setTimeout> | undefined
+    const refit = () => {
+      clearTimeout(t)
+      t = setTimeout(() => {
+        if (fittedRef.current && !userMovedRef.current && !focusIdRef.current) overview(false)
+      }, 150)
+    }
+    map.on('resize', refit)
+    const el = sheetRef.current
+    const ro = el ? new ResizeObserver(refit) : null
+    if (el && ro) ro.observe(el)
+    return () => {
+      clearTimeout(t)
+      map.off('resize', refit)
+      ro?.disconnect()
+    }
+  }, [map, overview])
+
+  // 长按路线的提示：用过一次长按以后就不再显示
+  const pressHintDone = useLiveQuery(async () => !!(await db.settings.get('hintLongPress'))?.value)
+
   // 页面跳转
   const navigate = useNavigate()
   // 长按路线：打开那段交通（机票 / 车票和详细信息）
-  const press = useRouteLongPress(map, 'home-route-hit', (segId) => navigate(`/segment/${segId}`))
+  const press = useRouteLongPress(map, 'home-route-hit', (segId) => {
+    db.settings.put({ key: 'hintLongPress', value: true })
+    navigate(`/segment/${segId}`)
+  })
 
   // 画路线（样式每次重新加载后都要重画）
   useEffect(() => {
@@ -281,7 +337,7 @@ export default function HomePage() {
       {/* 顶部：左边旅行名和状态，右边两个按钮 */}
       <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 px-4 pt-[max(env(safe-area-inset-top),16px)]">
         {/* 左上角卡片（点它打开「我的旅行」：切换或新建旅行） */}
-        <Link to="/trips" aria-label="我的旅行：切换或新建旅行" className="pointer-events-auto min-w-0 rounded-2xl border border-line bg-glass px-3.5 py-2 shadow-[0_2px_12px_var(--shadow)] backdrop-blur">
+        <Link to="/trips" aria-label="我的旅行：切换或新建旅行" className="pointer-events-auto min-w-0 rounded-2xl border border-line bg-card px-3.5 py-2 shadow-[0_2px_12px_var(--shadow)]">
           {/* 副标题（斜体衬线） */}
           <div className="flex items-center gap-1 font-serif text-[15px] italic text-muted">
             {data.trip.subtitle ?? 'Voyage'}
@@ -298,7 +354,7 @@ export default function HomePage() {
             今日旅程
           </Link>
           {/* 未来旅程：浅色按钮 */}
-          <Link to="/upcoming" className="flex h-11 items-center gap-1.5 rounded-full border border-line-strong bg-glass px-3.5 text-[13px] font-medium text-ink shadow-[0_2px_12px_var(--shadow)] backdrop-blur">
+          <Link to="/upcoming" className="flex h-11 items-center gap-1.5 rounded-full border border-line-strong bg-card px-3.5 text-[13px] font-medium text-ink shadow-[0_2px_12px_var(--shadow)]">
             <Icon name="arrowRight" size={16} />
             未来旅程
           </Link>
@@ -398,8 +454,6 @@ export default function HomePage() {
                 本次旅行
               </Link>
             </div>
-            {/* 提示：长按路线 */}
-            {sheetOpen && data.segments.length > 0 && <p className="-mt-1 text-[11px] text-muted">长按地图上的路线，可以直接打开那段机票 / 车票和详细信息</p>}
             {/* 展开时显示城市卡片（可以左右滑动 / 用鼠标拖动） */}
             {sheetOpen && (
               <CityStrip
@@ -410,6 +464,7 @@ export default function HomePage() {
                   selected: data.places.some((p) => p.stopId === stop.id && p.category === 'hotel' && p.status === 'selected'),
                 }))}
                 onPick={focusCity}
+                hint={pressHintDone === false && data.segments.length > 0}
               />
             )}
           </div>
@@ -427,11 +482,14 @@ export default function HomePage() {
 function CityStrip({
   cards,
   onPick,
+  hint,
 }: {
   // 每个城市：城市、日期文字、住宿状态
   cards: { stop: Stop; when: string; booked: boolean; selected: boolean }[]
   // 点卡片
   onPick: (s: Stop) => void
+  // 是否显示“长按路线”的提示
+  hint?: boolean
 }) {
   // 鼠标拖动
   const drag = useDragScroll<HTMLDivElement>()
@@ -471,7 +529,8 @@ function CityStrip({
       {/* 标题行：几个城市 + 翻页按钮 */}
       <div className="mb-1.5 flex items-center justify-between">
         <span className="text-[12px] text-muted">
-          {cards.length} 个城市{cards.length > 2 && ' · 左右滑动查看'}
+          {cards.length} 个城市{cards.length > 2 && ' · 左右滑动'}
+          {hint && ' · 长按路线看机票'}
         </span>
         {cards.length > 2 && (
           <span className="flex gap-1">
