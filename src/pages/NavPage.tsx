@@ -10,6 +10,8 @@
 // ============================================================
 
 // 引入 React 钩子
+// 引入地图顶部浮动按钮的起点（iPhone 全屏模式下会往下挪）
+import { mapTop } from '../lib/appHeight'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 // 引入路由工具
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -395,7 +397,7 @@ export default function NavPage() {
       // 缩放
       zoom: 17.3,
       // 给顶部和底部的卡片留位置
-      padding: { top: 190, bottom: 170, left: 0, right: 0 },
+      padding: { top: mapTop() + 174, bottom: 170, left: 0, right: 0 },
       // 动画时长
       duration: 900,
     })
@@ -485,7 +487,7 @@ export default function NavPage() {
         [Math.min(...lngs), Math.min(...lats)],
         [Math.max(...lngs), Math.max(...lats)],
       ],
-      { padding: { top: 80, bottom: 330, left: 50, right: 50 } },
+      { padding: { top: mapTop() + 64, bottom: 330, left: 50, right: 50 } },
     )
     // 跳过去
     if (cam) map.jumpTo(cam)
@@ -548,7 +550,7 @@ export default function NavPage() {
 
       {/* ===== 导航中：偏离路线 ===== */}
       {phase === 'running' && progress && !sim && progress.offRoute > OFF_ROUTE && (
-        <div className="absolute inset-x-3 top-[max(env(safe-area-inset-top),12px)] flex items-center gap-3.5 rounded-3xl bg-accent px-4 py-4 text-on-accent shadow-[0_8px_24px_var(--shadow)]">
+        <div className="absolute inset-x-3 top-[var(--map-top)] flex items-center gap-3.5 rounded-3xl bg-accent px-4 py-4 text-on-accent shadow-[0_8px_24px_var(--shadow)]">
           {/* 提醒图标 */}
           <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-black/10">
             <Icon name="alert" size={32} stroke={2} />
@@ -563,7 +565,7 @@ export default function NavPage() {
 
       {/* ===== 导航中：顶部转向提示 ===== */}
       {phase === 'running' && nextM && progress && (sim || progress.offRoute <= OFF_ROUTE) && (
-        <div className="absolute inset-x-3 top-[max(env(safe-area-inset-top),12px)] rounded-3xl bg-ink px-4 py-3.5 text-paper shadow-[0_8px_24px_var(--shadow)]">
+        <div className="absolute inset-x-3 top-[var(--map-top)] rounded-3xl bg-ink px-4 py-3.5 text-paper shadow-[0_8px_24px_var(--shadow)]">
           <div className="flex items-center gap-3.5">
             {/* 大箭头 */}
             <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-paper/10">
@@ -594,7 +596,7 @@ export default function NavPage() {
 
       {/* 提示 */}
       {toast && (
-        <div role="status" className="pointer-events-none absolute inset-x-0 top-[calc(max(env(safe-area-inset-top),12px)+150px)] flex justify-center px-6">
+        <div role="status" className="pointer-events-none absolute inset-x-0 top-[calc(var(--map-top)+150px)] flex justify-center px-6">
           <span className="rounded-full bg-accent px-4 py-2 text-[13px] text-on-accent shadow-lg">{toast}</span>
         </div>
       )}

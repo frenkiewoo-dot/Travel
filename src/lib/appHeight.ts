@@ -27,6 +27,19 @@ function apply() {
   document.documentElement.classList.add('ios-standalone')
 }
 
+// 地图页面顶部浮动按钮的起点（像素）：普通网页是 16；iPhone 全屏模式下是状态栏高度 + 50
+// （iPhone 会在状态栏下面加一层渐变模糊，按钮要往下挪，躲开这层模糊；CSS 里对应的是变量 --map-top）
+let probe: HTMLDivElement | null = null
+export function mapTop(): number {
+  // 用一个看不见的元素量出 --map-top 实际是多少像素
+  if (!probe) {
+    probe = document.createElement('div')
+    probe.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;top:0;left:0;width:1px;height:var(--map-top)'
+    document.body.appendChild(probe)
+  }
+  return probe.offsetHeight || 16
+}
+
 // 启动时设置，转屏和尺寸变化时更新
 export function setupAppHeight() {
   apply()

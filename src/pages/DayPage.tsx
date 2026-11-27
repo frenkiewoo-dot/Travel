@@ -8,6 +8,8 @@
 // ============================================================
 
 // 引入 React 钩子
+// 引入地图顶部浮动按钮的起点（iPhone 全屏模式下会往下挪）
+import { mapTop } from '../lib/appHeight'
 import { useEffect, useMemo, useState } from 'react'
 // 引入路由工具
 import { Link, useNavigate, useParams } from 'react-router-dom'
@@ -161,7 +163,7 @@ export default function DayPage({ today = false }: { today?: boolean }) {
       return
     }
     // 多站：装下所有站点，稍微倾斜显示 3D
-    const cam = map.cameraForBounds(boundsOf(points), { padding: { top: 90, bottom: 40, left: 40, right: 72 } })
+    const cam = map.cameraForBounds(boundsOf(points), { padding: { top: mapTop() + 74, bottom: 40, left: 40, right: 72 } })
     // 跳过去
     if (cam) map.jumpTo({ ...cam, pitch: 45, bearing: -12 })
   }, [map, pointsKey, cityLng, cityLat])
@@ -299,7 +301,7 @@ export default function DayPage({ today = false }: { today?: boolean }) {
           <div ref={containerRef} className="h-full w-full" />
         </div>
         {/* 顶部：返回按钮 + 当天标题 */}
-        <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center gap-2 px-4 pt-[max(env(safe-area-inset-top),16px)]">
+        <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center gap-2 px-4 pt-[var(--map-top)]">
           {/* 返回按钮 */}
           <button
             aria-label="返回"
@@ -541,7 +543,7 @@ export default function DayPage({ today = false }: { today?: boolean }) {
 
       {/* 顶部小提示 */}
       {toast && (
-        <div role="status" className="pointer-events-none absolute inset-x-0 top-[calc(max(env(safe-area-inset-top),16px)+56px)] z-[60] flex justify-center">
+        <div role="status" className="pointer-events-none absolute inset-x-0 top-[calc(var(--map-top)+56px)] z-[60] flex justify-center">
           <span className="rounded-full bg-ink px-4 py-2 text-[13px] text-paper shadow-lg">{toast}</span>
         </div>
       )}

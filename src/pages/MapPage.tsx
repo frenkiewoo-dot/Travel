@@ -8,6 +8,8 @@
 // ============================================================
 
 // 引入 React 钩子
+// 引入地图顶部浮动按钮的起点（iPhone 全屏模式下会往下挪）
+import { mapTop } from '../lib/appHeight'
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 // 引入路由工具
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
@@ -157,7 +159,7 @@ export default function MapPage() {
       // 多个就装下全部
       else {
         // 计算视角
-        const cam = map.cameraForBounds(boundsOf(pins.map((p) => [p.lng, p.lat] as LngLat)), { padding: { top: 140, bottom: 220, left: 50, right: 80 } })
+        const cam = map.cameraForBounds(boundsOf(pins.map((p) => [p.lng, p.lat] as LngLat)), { padding: { top: mapTop() + 124, bottom: 220, left: 50, right: 80 } })
         // 跳过去
         if (cam) map.jumpTo(cam)
       }
@@ -546,7 +548,7 @@ export default function MapPage() {
       </div>
 
       {/* 顶部：搜索框 + 编辑提示 */}
-      <div className="absolute inset-x-0 top-0 flex flex-col gap-2 px-4 pt-[max(env(safe-area-inset-top),16px)]">
+      <div className="absolute inset-x-0 top-0 flex flex-col gap-2 px-4 pt-[var(--map-top)]">
         {/* 搜索框 */}
         <div className="flex h-12 items-center gap-2 rounded-2xl border border-line bg-card px-3.5 shadow-[0_1px_3px_var(--shadow-crisp)]">
           {/* 放大镜 */}
@@ -891,7 +893,7 @@ export default function MapPage() {
 
       {/* 顶部小提示 */}
       {toast && (
-        <div role="status" className="pointer-events-none absolute inset-x-0 top-[calc(max(env(safe-area-inset-top),16px)+60px)] flex justify-center px-6">
+        <div role="status" className="pointer-events-none absolute inset-x-0 top-[calc(var(--map-top)+60px)] flex justify-center px-6">
           <span className="rounded-full bg-ink px-4 py-2 text-center text-[13px] text-paper shadow-lg">{toast}</span>
         </div>
       )}

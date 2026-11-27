@@ -135,6 +135,15 @@ body {
   overscroll-behavior: none;
 }
 
+/* 地图页面顶部浮动按钮（首页、地图、每天的日程、未来旅程、导航）的起点
+   iPhone 主屏幕全屏模式下，系统会在状态栏下面加一层渐变模糊，按钮往下挪 50px 躲开它 */
+:root {
+  --map-top: max(env(safe-area-inset-top), 16px);
+}
+html.ios-standalone {
+  --map-top: calc(env(safe-area-inset-top) + 50px);
+}
+
 /* iPhone 主屏幕全屏模式：弹出面板、全屏车票等“铺满屏幕”的元素以 App 为准（App 已经是屏幕的真实高度）
    用 contain 而不是 transform：transform 会让 iPhone 把整个 App 当成一个大图层，刚打开时先用低清晰度画、过一会儿才变清楚 */
 html.ios-standalone #root {

@@ -3,6 +3,8 @@
 // ============================================================
 
 // 引入 React 钩子
+// 引入地图顶部浮动按钮的起点（iPhone 全屏模式下会往下挪）
+import { mapTop } from '../lib/appHeight'
 import { useEffect, useMemo } from 'react'
 // 引入路由工具
 import { Link, useNavigate } from 'react-router-dom'
@@ -72,7 +74,7 @@ export default function UpcomingPage() {
     // 每个城市一个标记（点了就去首页）
     const markers = cities.map((c) => cityMarker(c.name, c.kind === 'home', () => navigate('/')).setLngLat([c.lng, c.lat]).addTo(map))
     // 装下所有城市
-    const cam = map.cameraForBounds(boundsOf(remaining.stops.map((s) => [s.lng, s.lat] as LngLat)), { padding: { top: 70, bottom: 40, left: 30, right: 90 } })
+    const cam = map.cameraForBounds(boundsOf(remaining.stops.map((s) => [s.lng, s.lat] as LngLat)), { padding: { top: mapTop() + 54, bottom: 40, left: 30, right: 90 } })
     // 跳过去
     if (cam) map.jumpTo(cam)
     // 移除标记
@@ -93,7 +95,7 @@ export default function UpcomingPage() {
           <div ref={containerRef} className="h-full w-full" />
         </div>
         {/* 返回按钮和标题 */}
-        <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center gap-2 px-4 pt-[max(env(safe-area-inset-top),16px)]">
+        <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center gap-2 px-4 pt-[var(--map-top)]">
           {/* 返回 */}
           <button
             aria-label="返回"

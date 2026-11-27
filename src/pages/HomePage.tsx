@@ -6,6 +6,8 @@
 // ============================================================
 
 // 引入 React 钩子
+// 引入地图顶部浮动按钮的起点（iPhone 全屏模式下会往下挪）
+import { mapTop } from '../lib/appHeight'
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 // 引入路由链接
 import { Link, useNavigate } from 'react-router-dom'
@@ -91,7 +93,7 @@ export default function HomePage() {
     // 底部卡片的高度
     const sheetH = sheetRef.current?.offsetHeight ?? 220
     // 返回留白
-    return { top: 140, bottom: sheetH + 24, left: 36, right: 120 }
+    return { top: mapTop() + 100, bottom: sheetH + 24, left: 36, right: 120 }
   }, [])
 
   // 回到全览：显示整条路线，平面、正北
@@ -335,7 +337,7 @@ export default function HomePage() {
       )}
 
       {/* 顶部：左边旅行名和状态，右边两个按钮 */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 px-4 pt-[max(env(safe-area-inset-top),16px)]">
+      <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 px-4 pt-[var(--map-top)]">
         {/* 左上角卡片（点它打开「我的旅行」：切换或新建旅行） */}
         <Link to="/trips" aria-label="我的旅行：切换或新建旅行" className="pointer-events-auto min-w-0 rounded-2xl border border-line bg-card px-3.5 py-2 shadow-[0_1px_3px_var(--shadow-crisp)]">
           {/* 副标题（斜体衬线） */}
@@ -362,7 +364,7 @@ export default function HomePage() {
       </div>
 
       {/* 提示条：离线 或 定位出错 */}
-      <div className="pointer-events-none absolute inset-x-4 top-[calc(max(env(safe-area-inset-top),16px)+64px)] flex flex-col gap-2">
+      <div className="pointer-events-none absolute inset-x-4 top-[calc(var(--map-top)+64px)] flex flex-col gap-2">
         {/* 离线提示 */}
         {offline && <Notice text="现在没有网络：底图暂时显示不了，路线和标记照常可用" />}
         {/* 定位出错提示（可关闭） */}
