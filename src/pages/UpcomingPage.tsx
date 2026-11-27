@@ -98,12 +98,12 @@ export default function UpcomingPage() {
           <button
             aria-label="返回"
             onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))}
-            className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-line bg-card shadow-[0_2px_10px_var(--shadow)]"
+            className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-line bg-card shadow-[0_1px_3px_var(--shadow-crisp)]"
           >
             <Icon name="back" size={20} />
           </button>
           {/* 标题 */}
-          <div className="pointer-events-auto flex h-11 items-center rounded-full border border-line bg-card px-4 text-[15px] font-semibold shadow-[0_2px_10px_var(--shadow)]">未来旅程</div>
+          <div className="pointer-events-auto flex h-11 items-center rounded-full border border-line bg-card px-4 text-[15px] font-semibold shadow-[0_1px_3px_var(--shadow-crisp)]">未来旅程</div>
         </div>
       </div>
 

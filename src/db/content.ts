@@ -22,6 +22,11 @@ import { saveStops } from './trip'
 // 记录已合并的内容版本的设置名
 const KEY = 'contentVersion'
 
+// 推荐内容是不是已经是最新版本（是的话启动时可以先显示 App，再在后台检查推荐地点）
+export async function contentIsCurrent(): Promise<boolean> {
+  return (((await db.settings.get(KEY))?.value as number | undefined) ?? 0) >= CONTENT_VERSION
+}
+
 // 合并推荐内容（App 启动时调用）
 export async function applyContent(): Promise<void> {
   // 已经合并过的版本

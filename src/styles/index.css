@@ -40,6 +40,8 @@
   --glass: rgba(252, 250, 246, 0.9);
   /* 阴影颜色 */
   --shadow: rgba(46, 40, 35, 0.10);
+  /* 地图上浮动按钮的细阴影（短、边缘清楚） */
+  --shadow-crisp: rgba(46, 40, 35, 0.22);
   /* 告诉浏览器：表单控件等用浅色 */
   color-scheme: light;
 }
@@ -78,6 +80,7 @@
   --glass: rgba(42, 35, 30, 0.9);
   /* 阴影 */
   --shadow: rgba(0, 0, 0, 0.35);
+  --shadow-crisp: rgba(0, 0, 0, 0.5);
   /* 表单控件用深色 */
   color-scheme: dark;
 }
@@ -132,10 +135,11 @@ body {
   overscroll-behavior: none;
 }
 
-/* iPhone 主屏幕全屏模式：弹出面板、全屏车票等“铺满屏幕”的元素以 App 为准（App 已经是屏幕的真实高度） */
+/* iPhone 主屏幕全屏模式：弹出面板、全屏车票等“铺满屏幕”的元素以 App 为准（App 已经是屏幕的真实高度）
+   用 contain 而不是 transform：transform 会让 iPhone 把整个 App 当成一个大图层，刚打开时先用低清晰度画、过一会儿才变清楚 */
 html.ios-standalone #root {
   overflow: hidden;
-  transform: translateZ(0);
+  contain: layout paint;
 }
 
 /* ===== 在电脑上打开：App 显示成屏幕中间一个手机宽度的窗口 =====

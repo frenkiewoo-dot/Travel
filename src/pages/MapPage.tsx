@@ -548,7 +548,7 @@ export default function MapPage() {
       {/* 顶部：搜索框 + 编辑提示 */}
       <div className="absolute inset-x-0 top-0 flex flex-col gap-2 px-4 pt-[max(env(safe-area-inset-top),16px)]">
         {/* 搜索框 */}
-        <div className="flex h-12 items-center gap-2 rounded-2xl border border-line bg-card px-3.5 shadow-[0_2px_12px_var(--shadow)]">
+        <div className="flex h-12 items-center gap-2 rounded-2xl border border-line bg-card px-3.5 shadow-[0_1px_3px_var(--shadow-crisp)]">
           {/* 放大镜 */}
           <Icon name="search" size={18} className="shrink-0 text-muted" />
           {/* 输入框 */}
@@ -656,7 +656,7 @@ export default function MapPage() {
 
         {/* 编辑某一天时的提示条 */}
         {day && !showResults && (
-          <div className="flex items-center justify-between gap-2 self-start rounded-full border border-line bg-card py-1 pr-1 pl-3.5 text-[13px] shadow-[0_2px_10px_var(--shadow)]">
+          <div className="flex items-center justify-between gap-2 self-start rounded-full border border-line bg-card py-1 pr-1 pl-3.5 text-[13px] shadow-[0_1px_3px_var(--shadow-crisp)]">
             {/* 正在编辑哪天 */}
             <span>
               正在编辑 <b className="font-semibold">{dayInfo ? dayLabel(dayInfo) : `第 ${day} 天`}</b>

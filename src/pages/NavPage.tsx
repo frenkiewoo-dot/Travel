@@ -601,7 +601,7 @@ export default function NavPage() {
 
       {/* 回到导航视角 */}
       {phase === 'running' && !follow && (
-        <button onClick={() => setFollow(true)} className="absolute right-4 bottom-[calc(var(--sheet-h,180px)+16px)] flex h-11 items-center gap-1.5 rounded-full bg-card px-4 text-[13px] shadow-[0_2px_12px_var(--shadow)]">
+        <button onClick={() => setFollow(true)} className="absolute right-4 bottom-[calc(var(--sheet-h,180px)+16px)] flex h-11 items-center gap-1.5 rounded-full bg-card px-4 text-[13px] shadow-[0_1px_3px_var(--shadow-crisp)]">
           <Icon name="navigate" size={16} />
           回到导航
         </button>

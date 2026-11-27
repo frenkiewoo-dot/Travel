@@ -23,10 +23,37 @@
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
     <!-- 页面标题 -->
     <title>Noël 旅行</title>
+    <!-- 启动画面的样式：网页一打开就是奶油色底 + Noël，不用等程序加载
+         （iPhone 从主屏幕打开时，会先显示上次的截图，比较模糊；这个画面能让它更早换成清楚的内容） -->
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #f6f1e9;
+      }
+      #boot {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f6f1e9;
+        color: #6b6157;
+        font: italic 500 34px/1 'Cormorant Garamond', Georgia, 'Songti SC', serif;
+      }
+      @media (prefers-color-scheme: dark) {
+        html,
+        body,
+        #boot {
+          background: #1e1915;
+          color: #a89c8f;
+        }
+      }
+    </style>
   </head>
   <body>
-    <!-- React 会把整个 App 渲染到这个 div 里 -->
-    <div id="root"></div>
+    <!-- React 会把整个 App 渲染到这个 div 里（渲染时会替换掉里面的启动画面） -->
+    <div id="root"><div id="boot">Noël</div></div>
     <!-- 程序入口 -->
     <script type="module" src="/src/main.tsx"></script>
   </body>

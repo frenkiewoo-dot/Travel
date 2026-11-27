@@ -337,7 +337,7 @@ export default function HomePage() {
       {/* 顶部：左边旅行名和状态，右边两个按钮 */}
       <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 px-4 pt-[max(env(safe-area-inset-top),16px)]">
         {/* 左上角卡片（点它打开「我的旅行」：切换或新建旅行） */}
-        <Link to="/trips" aria-label="我的旅行：切换或新建旅行" className="pointer-events-auto min-w-0 rounded-2xl border border-line bg-card px-3.5 py-2 shadow-[0_2px_12px_var(--shadow)]">
+        <Link to="/trips" aria-label="我的旅行：切换或新建旅行" className="pointer-events-auto min-w-0 rounded-2xl border border-line bg-card px-3.5 py-2 shadow-[0_1px_3px_var(--shadow-crisp)]">
           {/* 副标题（斜体衬线） */}
           <div className="flex items-center gap-1 font-serif text-[15px] italic text-muted">
             {data.trip.subtitle ?? 'Voyage'}
@@ -349,12 +349,12 @@ export default function HomePage() {
         {/* 右上角按钮组 */}
         <div className="pointer-events-auto flex shrink-0 gap-2">
           {/* 今日旅程：深色主按钮 */}
-          <Link to="/today" className="flex h-11 items-center gap-1.5 rounded-full bg-ink px-3.5 text-[13px] font-medium text-paper shadow-[0_2px_12px_var(--shadow)]">
+          <Link to="/today" className="flex h-11 items-center gap-1.5 rounded-full bg-ink px-3.5 text-[13px] font-medium text-paper shadow-[0_1px_3px_var(--shadow-crisp)]">
             <Icon name="sun" size={16} />
             今日旅程
           </Link>
           {/* 未来旅程：浅色按钮 */}
-          <Link to="/upcoming" className="flex h-11 items-center gap-1.5 rounded-full border border-line-strong bg-card px-3.5 text-[13px] font-medium text-ink shadow-[0_2px_12px_var(--shadow)]">
+          <Link to="/upcoming" className="flex h-11 items-center gap-1.5 rounded-full border border-line-strong bg-card px-3.5 text-[13px] font-medium text-ink shadow-[0_1px_3px_var(--shadow-crisp)]">
             <Icon name="arrowRight" size={16} />
             未来旅程
           </Link>
@@ -631,7 +631,7 @@ function dateRange(days: { date: string | null }[], hint?: string): string {
 function Notice({ text, onClose }: { text: string; onClose?: () => void }) {
   // 返回提示条
   return (
-    <div className="pointer-events-auto flex items-start gap-2 rounded-xl bg-accent-soft px-3 py-2 text-[12px] leading-relaxed text-accent shadow-[0_2px_10px_var(--shadow)]">
+    <div className="pointer-events-auto flex items-start gap-2 rounded-xl bg-accent-soft px-3 py-2 text-[12px] leading-relaxed text-accent shadow-[0_1px_3px_var(--shadow-crisp)]">
       {/* 提醒图标 */}
       <Icon name="alert" size={15} className="mt-0.5 shrink-0" />
       {/* 文字 */}
