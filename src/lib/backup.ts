@@ -3,14 +3,18 @@
 //   - 导出：把手机里的所有数据（行程、酒店景点、日程、车票和文件、花费、照片、设置）打包成一个 JSON 文件
 //     车票图片、PDF、照片会转成文字（base64）放进文件里，所以一个文件就是完整备份
 //     照片多的话文件会很大，可以选择不包含照片（恢复这种备份时，手机里现有的照片保持不动）
-//   - 导入：读备份文件，确认后替换手机里的全部数据
+//   - 导入：读备份文件，确认后二选一：
+//       合并：备份里的内容加进来，手机里现有、备份里没有的保留（同一条记录以备份为准）
+//       替换：清空手机里的数据，换成备份里的
 //   - 备份里有数据结构版本号，旧版本的备份也能导入（缺的表当作空）
 // ============================================================
 
 // 引入数据库
 import { db } from '../db/db'
 // 引入版本号
-import { SCHEMA_VERSION, type Photo, type TicketFile } from '../db/schema'
+import { SCHEMA_VERSION, type Photo, type Setting, type TicketFile } from '../db/schema'
+// 引入“没备份的改动”记录
+import { clearUnsaved } from './changeTracker'
 
 // 备份文件里的 App 标识（防止导入别的 JSON）
 const APP_ID = 'noel-travel'
@@ -115,7 +119,8 @@ export async function createBackup(includePhotos = true): Promise<File> {
 }
 
 // 把备份交给用户：能用系统分享（iPhone：存储到“文件”、AirDrop、发给自己）就分享，否则直接下载
-export async function shareOrDownload(file: File): Promise<'shared' | 'downloaded' | 'cancelled'> {
+// 'blocked' = iPhone 没让弹出分享菜单（打包太久，超过了“刚点过按钮”的时限）：文件已经准备好，让用户再点一下
+export async function shareOrDownload(file: File): Promise<'shared' | 'downloaded' | 'cancelled' | 'blocked'> {
   // 系统分享
   if (navigator.canShare?.({ files: [file] })) {
     try {
@@ -126,6 +131,8 @@ export async function shareOrDownload(file: File): Promise<'shared' | 'downloade
     } catch (e) {
       // 用户取消了分享
       if ((e as Error).name === 'AbortError') return 'cancelled'
+      // 系统不让弹出（需要用户刚点过按钮）
+      if ((e as Error).name === 'NotAllowedError') return 'blocked'
       // 其他错误：退回下载
     }
   }
@@ -149,6 +156,8 @@ export async function shareOrDownload(file: File): Promise<'shared' | 'downloade
 export async function markBackedUp() {
   // 保存时间
   await db.settings.put({ key: LAST_BACKUP_KEY, value: Date.now() })
+  // 清掉“有改动没备份”的记录
+  clearUnsaved()
 }
 
 // 读取并检查备份文件，返回摘要（还没有写入数据库）
@@ -176,16 +185,40 @@ export async function readBackup(file: File): Promise<{ backup: BackupFile; summ
   return { backup, summary }
 }
 
-// 把备份写进数据库（会替换手机里的全部数据）
-export async function restoreBackup(backup: BackupFile): Promise<void> {
+// 恢复方式：合并 / 替换
+export type RestoreMode = 'merge' | 'replace'
+
+// 合并设置：大部分以备份为准；几项特殊的取两边合起来的结果
+function mergeSettings(current: Setting[], incoming: Setting[]): Setting[] {
+  // 手机里现有的设置（按名字查）
+  const cur = new Map(current.map((s) => [s.key, s.value]))
+  // 逐条处理备份里的设置
+  return incoming.map((s) => {
+    // 手机里同名的值
+    const mine = cur.get(s.key)
+    // 没有同名的：直接用备份的
+    if (mine === undefined) return s
+    // 已经加过的推荐地点：两边合起来（删掉的推荐不会被加回来）
+    if (s.key === 'recPlacesSeen' && Array.isArray(mine) && Array.isArray(s.value)) return { key: s.key, value: [...new Set([...mine, ...s.value])] }
+    // 推荐内容版本、上次备份时间：取大的
+    if ((s.key === 'contentVersion' || s.key === LAST_BACKUP_KEY) && typeof mine === 'number' && typeof s.value === 'number') return { key: s.key, value: Math.max(mine, s.value) }
+    // 其他：以备份为准
+    return s
+  })
+}
+
+// 把备份写进数据库
+//   replace：替换手机里的全部数据
+//   merge：备份里的加进来、同一条记录以备份为准，手机里有、备份里没有的保留
+export async function restoreBackup(backup: BackupFile, mode: RestoreMode = 'replace'): Promise<void> {
   // 一次性完成：要么全部成功，要么不改
   await db.transaction('rw', [...TABLES.map((t) => db.table(t)), db.routeCache], async () => {
     // 逐张表处理
     for (const name of TABLES) {
       // 导出时选了“不包含照片”：手机里现有的照片保持不动
       if (name === 'photos' && backup.photos === 'excluded') continue
-      // 先清空
-      await db.table(name).clear()
+      // 替换：先清空
+      if (mode === 'replace') await db.table(name).clear()
       // 备份里的数据（旧版本备份可能没有这张表）
       const rows = backup.tables[name] ?? []
       // 车票文件：文字转回 Blob
@@ -194,14 +227,19 @@ export async function restoreBackup(backup: BackupFile): Promise<void> {
       } else if (name === 'photos') {
         // 照片：文字转回大图和小图
         await db.photos.bulkPut((rows as SerializedPhoto[]).map(({ dataUrl, thumbDataUrl, ...rest }) => ({ ...rest, blob: dataUrlToBlob(dataUrl), thumb: dataUrlToBlob(thumbDataUrl) })))
+      } else if (name === 'settings' && mode === 'merge') {
+        // 合并设置
+        await db.settings.bulkPut(mergeSettings(await db.settings.toArray(), rows as Setting[]))
       } else {
-        // 其他表原样写入
+        // 其他表原样写入（合并时：同一个 ID 以备份为准）
         await db.table(name).bulkPut(rows)
       }
     }
     // 路线缓存清空（会重新算）
     await db.routeCache.clear()
-    // 记录：刚恢复过的数据就等于有备份
-    await db.settings.put({ key: LAST_BACKUP_KEY, value: Date.now() })
+    // 替换：刚恢复过的数据就等于有备份
+    if (mode === 'replace') await db.settings.put({ key: LAST_BACKUP_KEY, value: Date.now() })
   })
+  // 替换：清掉“有改动没备份”（合并后的数据是新的组合，还没有备份，保留提醒）
+  if (mode === 'replace') clearUnsaved()
 }

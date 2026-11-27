@@ -4,11 +4,13 @@
 // ============================================================
 
 // 引入 Dexie 和它的表类型
-import Dexie, { type EntityTable } from 'dexie'
+import Dexie, { type DBCore, type EntityTable } from 'dexie'
 // 引入数据结构定义
 import type { DayPlan, Expense, Photo, Place, RouteCache, Segment, Setting, Stop, Ticket, TicketFile, Trip } from './schema'
 // 引入初始数据
 import { buildSeed } from './seed'
+// 引入“没备份的改动”记录
+import { TRACKED_TABLES, noteChange } from '../lib/changeTracker'
 
 // 定义数据库的类型：一个 Dexie 实例，加上下面这些表
 type TravelDB = Dexie & {
@@ -103,6 +105,31 @@ db.version(4).stores({
   expenses: 'id, tripId, date',
   // 照片：按旅行、按城市、按景点、按拍摄时间查
   photos: 'id, tripId, stopId, placeId, takenAt',
+})
+
+// 数据库中间层：你的数据（行程、地点、车票、花费、照片等）每次被新增、修改、删除时，
+// 记下“有改动还没备份”，首页会在一天后提醒你导出备份（见 lib/changeTracker.ts）
+db.use({
+  // 挂在最底层（所有写入最终都经过这里）
+  stack: 'dbcore',
+  // 名字
+  name: 'unsavedChanges',
+  // 包一层
+  create(down: DBCore): DBCore {
+    return {
+      // 其他功能原样保留
+      ...down,
+      // 取某张表时
+      table(name) {
+        // 原来的表
+        const t = down.table(name)
+        // 不是“你的数据”的表：原样返回
+        if (!TRACKED_TABLES.has(name)) return t
+        // 是：每次写入前记一下
+        return { ...t, mutate: (req) => (noteChange(), t.mutate(req)) }
+      },
+    }
+  },
 })
 
 // 以后如果要改已有数据的格式，写法示例：

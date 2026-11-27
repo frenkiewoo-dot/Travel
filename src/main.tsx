@@ -22,17 +22,19 @@ import { applyContent, contentIsCurrent } from './db/content'
 import App from './App'
 // 引入 iPhone 全屏模式的高度修正
 import { setupAppHeight } from './lib/appHeight'
+// 引入“App 自己的后台写入不算你的改动”
+import { quietly } from './lib/changeTracker'
 
 // 先修正 iPhone 全屏模式的高度（在显示任何内容之前）
 setupAppHeight()
 
 // 启动函数
 async function start() {
-  // 第一次打开时写入初始行程
-  await ensureSeeded()
+  // 第一次打开时写入初始行程（App 自己写的，不算你的改动，不会触发备份提醒）
+  await quietly(ensureSeeded)
   // 推荐内容有新版本（例如第一次打开、App 更新了推荐内容）：先合并完再显示，避免显示一半旧内容
   const current = await contentIsCurrent().catch(() => false)
-  if (!current) await applyContent().catch((e) => console.error('推荐内容合并失败', e))
+  if (!current) await quietly(applyContent).catch((e) => console.error('推荐内容合并失败', e))
   // 把 App 渲染到 #root 里（越早显示，iPhone 越早换掉打开时那张模糊的截图）
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
@@ -40,7 +42,7 @@ async function start() {
     </StrictMode>,
   )
   // 已经是最新版本：在后台检查一下推荐地点（新建的旅行、新加的城市），不耽误显示
-  if (current) applyContent().catch((e) => console.error('推荐内容合并失败', e))
+  if (current) quietly(applyContent).catch((e) => console.error('推荐内容合并失败', e))
   // 申请持久存储（不等结果）
   requestPersistentStorage().catch(() => {})
 }

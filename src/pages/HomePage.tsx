@@ -8,6 +8,8 @@
 // 引入 React 钩子
 // 引入地图顶部浮动按钮的起点（iPhone 全屏模式下会往下挪）
 import { mapTop } from '../lib/appHeight'
+// 引入备份提醒
+import { snoozeBackup, useBackupNudge } from '../lib/changeTracker'
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 // 引入路由链接
 import { Link, useNavigate } from 'react-router-dom'
@@ -74,6 +76,8 @@ export default function HomePage() {
   const [sheetOpen, setSheetOpen] = useState(true)
   // 是否关掉了定位错误提示
   const [geoDismissed, setGeoDismissed] = useState(false)
+  // 要不要提醒备份（有改动超过一天没备份）
+  const nudge = useBackupNudge()
   // 底部卡片元素（用来量高度，给地图留白）
   const sheetRef = useRef<HTMLDivElement>(null)
   // 景点小标签的横向拖动
@@ -363,12 +367,14 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* 提示条：离线 或 定位出错 */}
+      {/* 提示条：离线、定位出错、该备份了 */}
       <div className="pointer-events-none absolute inset-x-4 top-[calc(var(--map-top)+64px)] flex flex-col gap-2">
         {/* 离线提示 */}
         {offline && <Notice text="现在没有网络：底图暂时显示不了，路线和标记照常可用" />}
         {/* 定位出错提示（可关闭） */}
         {geo.error && !geoDismissed && <Notice text={geo.error} onClose={() => setGeoDismissed(true)} />}
+        {/* 备份提醒：有改动超过一天没备份（× = 明天再提醒） */}
+        {nudge.show && <Notice text={`新填的内容已经 ${nudge.days} 天没备份了。删掉 App 或换手机前，一定要先有备份。`} action={{ label: '去备份', onClick: () => navigate('/backup') }} onClose={() => snoozeBackup()} closeLabel="明天再提醒" />}
       </div>
 
       {/* 右侧圆形按钮：放在卡片上方 */}
@@ -630,7 +636,7 @@ function dateRange(days: { date: string | null }[], hint?: string): string {
 }
 
 // 提示条组件
-function Notice({ text, onClose }: { text: string; onClose?: () => void }) {
+function Notice({ text, onClose, action, closeLabel = '关闭提示' }: { text: string; onClose?: () => void; action?: { label: string; onClick: () => void }; closeLabel?: string }) {
   // 返回提示条
   return (
     <div className="pointer-events-auto flex items-start gap-2 rounded-xl bg-accent-soft px-3 py-2 text-[12px] leading-relaxed text-accent shadow-[0_1px_3px_var(--shadow-crisp)]">
@@ -638,9 +644,15 @@ function Notice({ text, onClose }: { text: string; onClose?: () => void }) {
       <Icon name="alert" size={15} className="mt-0.5 shrink-0" />
       {/* 文字 */}
       <span className="flex-1">{text}</span>
+      {/* 操作按钮（例如「去备份」） */}
+      {action && (
+        <button onClick={action.onClick} className="-my-0.5 shrink-0 rounded-full bg-accent px-2.5 py-1 text-[12px] font-medium text-paper">
+          {action.label}
+        </button>
+      )}
       {/* 关闭按钮 */}
       {onClose && (
-        <button aria-label="关闭提示" onClick={onClose} className="-m-1 p-1">
+        <button aria-label={closeLabel} onClick={onClose} className="-m-1 p-1">
           <Icon name="close" size={14} />
         </button>
       )}
